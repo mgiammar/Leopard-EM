@@ -243,7 +243,12 @@ def run_multiprocess_jobs(
         processes.append(p)
         p.start()
 
+    # Wait for all processes to finish
     for p in processes:
         p.join()
+
+    # Close the processes
+    for p in processes:
+        p.close()
 
     return dict(result_dict)

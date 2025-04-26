@@ -364,12 +364,14 @@ def _core_match_template_single_gpu(
     ##################################
 
     for i in orientation_batch_iterator:
+        torch.cuda.nvtx.range_push("next-euler-angles")
         euler_angles_batch = euler_angles[
             i * orientation_batch_size : (i + 1) * orientation_batch_size
         ]
         rot_matrix = roma.euler_to_rotmat(
             "ZYZ", euler_angles_batch, degrees=True, device=device
         )
+        torch.cuda.nvtx.range_pop()
 
         cross_correlation = _do_bached_orientation_cross_correlate(
             image_dft=image_dft,
@@ -378,6 +380,7 @@ def _core_match_template_single_gpu(
             projective_filters=projective_filters,
         )
 
+        torch.cuda.nvtx.range_push("update stats")
         # Update the tracked statistics through compiled function
         do_iteration_statistics_updates_compiled(
             cross_correlation,
@@ -395,6 +398,7 @@ def _core_match_template_single_gpu(
             image_shape_real[0],
             image_shape_real[1],
         )
+        torch.cuda.nvtx.range_pop()
 
     # NOTE: Need to send all tensors back to the CPU as numpy arrays for the shared
     # process dictionary. This is a workaround for now
@@ -449,10 +453,13 @@ def _do_bached_orientation_cross_correlate(
         orientation and defocus value. Will have shape
         (orientations, defocus_batch, H, W).
     """
+    torch.cuda.nvtx.range_push("setup")
     # Accounting for RFFT shape
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
     image_shape_real = (image_dft.shape[0], image_dft.shape[1] * 2 - 2)
+    torch.cuda.nvtx.range_pop()
 
+    torch.cuda.nvtx.range_push("extract-slices")
     # Extract central slice(s) from the template volume
     fourier_slice = extract_central_slices_rfft_3d(
         volume_rfft=template_dft,
@@ -462,25 +469,41 @@ def _do_bached_orientation_cross_correlate(
     fourier_slice = torch.fft.ifftshift(fourier_slice, dim=(-2,))
     fourier_slice[..., 0, 0] = 0 + 0j  # zero out the DC component (mean zero)
     fourier_slice *= -1  # flip contrast
+    torch.cuda.nvtx.range_pop()
 
+    torch.cuda.nvtx.range_push("apply-proj-filters")
     # Apply the projective filters on a new batch dimension
     fourier_slice = fourier_slice[None, None, ...] * projective_filters[:, :, None, ...]
+    torch.cuda.nvtx.range_pop()
+
+    torch.cuda.nvtx.range_push("convert-to-real")
     # Inverse Fourier transform into real space and normalize
     projections = torch.fft.irfftn(fourier_slice, dim=(-2, -1))
     projections = torch.fft.ifftshift(projections, dim=(-2, -1))
+    torch.cuda.nvtx.range_pop()
+
+    torch.cuda.nvtx.range_push("normalize-projections")
     projections = normalize_template_projection_compiled(
         projections,
         projection_shape_real,
         image_shape_real,
     )
+    torch.cuda.nvtx.range_pop()
 
+    torch.cuda.nvtx.range_push("forward-fft")
     # Padded forward Fourier transform for cross-correlation
     projections_dft = torch.fft.rfftn(projections, dim=(-2, -1), s=image_shape_real)
     projections_dft[..., 0, 0] = 0 + 0j  # zero out the DC component (mean zero)
+    torch.cuda.nvtx.range_pop()
 
+    torch.cuda.nvtx.range_push("conjugate-multiply")
     # Cross correlation step by element-wise multiplication
     projections_dft = image_dft[None, None, None, ...] * projections_dft.conj()
+    torch.cuda.nvtx.range_pop()
+
+    torch.cuda.nvtx.range_push("inverse-fft")
     cross_correlation = torch.fft.irfftn(projections_dft, dim=(-2, -1))
+    torch.cuda.nvtx.range_pop()
 
     # shape is (n_Cs n_defoc n_orientations, H, W)
     return cross_correlation
