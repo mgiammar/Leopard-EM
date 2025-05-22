@@ -228,7 +228,7 @@
             
   
   <span class="md-ellipsis">
-    Programs
+    Examples
     
   </span>
   
@@ -238,6 +238,115 @@
         
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Examples
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../examples/01_basic_configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuring Pydantic models in Python
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../examples/02_extract_peak_info/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Extracting results from the template matching search
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../../../examples/03_compare_scoring_metrics/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Comparing 2DTM scoring metrics
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Programs
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Programs
           </label>
@@ -377,71 +486,6 @@
   
 
       </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
-            
-  
-  <span class="md-ellipsis">
-    Examples
-    
-  </span>
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            Examples
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../../examples/basic_configuration/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Template Matching Configurations
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
     </li>
   
 
@@ -594,6 +638,28 @@
             analysis
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../analysis/gev_fit_metric/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    gev_fit_metric
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -2512,7 +2578,30 @@ the extracted box size.</p>
 <span class="normal">643</span>
 <span class="normal">644</span>
 <span class="normal">645</span>
-<span class="normal">646</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ParticleStack</span><span class="p">(</span><span class="n">BaseModel2DTM</span><span class="p">):</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ParticleStack</span><span class="p">(</span><span class="n">BaseModel2DTM</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Pydantic model for dealing with particle stack data.</span>
 
 <span class="sd">    Attributes</span>
@@ -2715,6 +2804,10 @@ the extracted box size.</p>
             <span class="s2">&quot;theta&quot;</span><span class="p">,</span>
             <span class="s2">&quot;phi&quot;</span><span class="p">,</span>
         <span class="p">],</span>
+        <span class="n">pos_reference</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="s2">&quot;top-left&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
+        <span class="n">handle_bounds</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;pad&quot;</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;reflect&quot;</span><span class="p">,</span> <span class="s2">&quot;replicate&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+        <span class="n">padding_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a tensor of the specified statistic for each cropped image.</span>
 
@@ -2726,6 +2819,25 @@ the extracted box size.</p>
 <span class="sd">        stat : Literal[&quot;mip&quot;, &quot;scaled_mip&quot;, &quot;correlation_average&quot;,</span>
 <span class="sd">            &quot;correlation_variance&quot;, &quot;defocus&quot;, &quot;psi&quot;, &quot;theta&quot;, &quot;phi&quot;]</span>
 <span class="sd">            The statistic to extract from the DataFrame.</span>
+<span class="sd">        pos_reference : Literal[&quot;center&quot;, &quot;top-left&quot;], optional</span>
+<span class="sd">            The reference point for the positions, by default &quot;center&quot;. If &quot;center&quot;, the</span>
+<span class="sd">            boxes extracted will be image[y - box_size // 2 : y + box_size // 2, ...].</span>
+<span class="sd">            If &quot;top-left&quot;, the boxes will be image[y : y + box_size, ...].</span>
+<span class="sd">        handle_bounds : Literal[&quot;pad&quot;, &quot;clip&quot;, &quot;error&quot;], optional</span>
+<span class="sd">            How to handle the bounds of the image, by default &quot;pad&quot;. If &quot;pad&quot;, the image</span>
+<span class="sd">            will be padded with the padding value based on the padding mode. If &quot;error&quot;,</span>
+<span class="sd">            an error will be raised if any region exceeds the image bounds. NOTE:</span>
+<span class="sd">            clipping is not supported since returned stack may have inhomogeneous sizes.</span>
+<span class="sd">        padding_mode : Literal[&quot;constant&quot;, &quot;reflect&quot;, &quot;replicate&quot;], optional</span>
+<span class="sd">            The padding mode to use when padding the image, by default &quot;constant&quot;.</span>
+<span class="sd">            &quot;constant&quot; pads with the value `padding_value`, &quot;reflect&quot; pads with the</span>
+<span class="sd">            reflection of the image at the edge, and &quot;replicate&quot; pads with the last</span>
+<span class="sd">            pixel of the image. These match the modes available in</span>
+<span class="sd">            `torch.nn.functional.pad`.</span>
+<span class="sd">        padding_value : float, optional</span>
+<span class="sd">            The value to use for padding when `padding_mode` is &quot;constant&quot;, by default</span>
+<span class="sd">            0.0.</span>
+
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -2771,10 +2883,10 @@ the extracted box size.</p>
                 <span class="n">pos_y</span><span class="p">,</span>
                 <span class="n">pos_x</span><span class="p">,</span>
                 <span class="p">(</span><span class="n">image_h</span> <span class="o">-</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">image_w</span> <span class="o">-</span> <span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
-                <span class="n">pos_reference</span><span class="o">=</span><span class="s2">&quot;top-left&quot;</span><span class="p">,</span>
-                <span class="n">handle_bounds</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
-                <span class="n">padding_mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span>
-                <span class="n">padding_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                <span class="n">pos_reference</span><span class="o">=</span><span class="n">pos_reference</span><span class="p">,</span>
+                <span class="n">handle_bounds</span><span class="o">=</span><span class="n">handle_bounds</span><span class="p">,</span>
+                <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+                <span class="n">padding_value</span><span class="o">=</span><span class="n">padding_value</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">stat_stack</span><span class="p">[</span><span class="n">indexes</span><span class="p">]</span> <span class="o">=</span> <span class="n">cropped_stat_maps</span>
 
@@ -3029,12 +3141,12 @@ the extracted box size.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/leopard_em/pydantic_models/data_structures/particle_stack.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get an item from the DataFrame.&quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
@@ -3149,7 +3261,7 @@ is loaded automatically.</p>
 
 
 <h3 id="leopard_em.pydantic_models.data_structures.particle_stack.ParticleStack.construct_cropped_statistic_stack" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">construct_cropped_statistic_stack</span><span class="p">(</span><span class="n">stat</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">construct_cropped_statistic_stack</span><span class="p">(</span><span class="n">stat</span><span class="p">,</span> <span class="n">pos_reference</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">handle_bounds</span><span class="o">=</span><span class="s1">&#39;pad&#39;</span><span class="p">,</span> <span class="n">padding_mode</span><span class="o">=</span><span class="s1">&#39;constant&#39;</span><span class="p">,</span> <span class="n">padding_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span></code>
 
 </h3>
 
@@ -3187,6 +3299,80 @@ The statistic to extract from the DataFrame.</p>
             </td>
             <td>
                 <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>pos_reference</code>
+            </td>
+            <td>
+                  <code><span title="typing.Literal">Literal</span>[&#39;center&#39;, &#39;top-left&#39;]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The reference point for the positions, by default "center". If "center", the
+boxes extracted will be image[y - box_size // 2 : y + box_size // 2, ...].
+If "top-left", the boxes will be image[y : y + box_size, ...].</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;center&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>handle_bounds</code>
+            </td>
+            <td>
+                  <code><span title="typing.Literal">Literal</span>[&#39;pad&#39;, &#39;clip&#39;, &#39;error&#39;]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>How to handle the bounds of the image, by default "pad". If "pad", the image
+will be padded with the padding value based on the padding mode. If "error",
+an error will be raised if any region exceeds the image bounds. NOTE:
+clipping is not supported since returned stack may have inhomogeneous sizes.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;pad&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>padding_mode</code>
+            </td>
+            <td>
+                  <code><span title="typing.Literal">Literal</span>[&#39;constant&#39;, &#39;reflect&#39;, &#39;replicate&#39;]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The padding mode to use when padding the image, by default "constant".
+"constant" pads with the value <code>padding_value</code>, "reflect" pads with the
+reflection of the image at the edge, and "replicate" pads with the last
+pixel of the image. These match the modes available in
+<code>torch.nn.functional.pad</code>.</p>
+              </div>
+            </td>
+            <td>
+                  <code>&#39;constant&#39;</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>padding_value</code>
+            </td>
+            <td>
+                  <code><span title="float">float</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>The value to use for padding when <code>padding_mode</code> is "constant", by default
+0.0.</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.0</code>
             </td>
           </tr>
       </tbody>
@@ -3295,7 +3481,30 @@ the original template size.</p>
 <span class="normal">468</span>
 <span class="normal">469</span>
 <span class="normal">470</span>
-<span class="normal">471</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct_cropped_statistic_stack</span><span class="p">(</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct_cropped_statistic_stack</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">stat</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span>
         <span class="s2">&quot;mip&quot;</span><span class="p">,</span>
@@ -3307,6 +3516,10 @@ the original template size.</p>
         <span class="s2">&quot;theta&quot;</span><span class="p">,</span>
         <span class="s2">&quot;phi&quot;</span><span class="p">,</span>
     <span class="p">],</span>
+    <span class="n">pos_reference</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="s2">&quot;top-left&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
+    <span class="n">handle_bounds</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;pad&quot;</span><span class="p">,</span>
+    <span class="n">padding_mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="s2">&quot;reflect&quot;</span><span class="p">,</span> <span class="s2">&quot;replicate&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+    <span class="n">padding_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a tensor of the specified statistic for each cropped image.</span>
 
@@ -3318,6 +3531,25 @@ the original template size.</p>
 <span class="sd">    stat : Literal[&quot;mip&quot;, &quot;scaled_mip&quot;, &quot;correlation_average&quot;,</span>
 <span class="sd">        &quot;correlation_variance&quot;, &quot;defocus&quot;, &quot;psi&quot;, &quot;theta&quot;, &quot;phi&quot;]</span>
 <span class="sd">        The statistic to extract from the DataFrame.</span>
+<span class="sd">    pos_reference : Literal[&quot;center&quot;, &quot;top-left&quot;], optional</span>
+<span class="sd">        The reference point for the positions, by default &quot;center&quot;. If &quot;center&quot;, the</span>
+<span class="sd">        boxes extracted will be image[y - box_size // 2 : y + box_size // 2, ...].</span>
+<span class="sd">        If &quot;top-left&quot;, the boxes will be image[y : y + box_size, ...].</span>
+<span class="sd">    handle_bounds : Literal[&quot;pad&quot;, &quot;clip&quot;, &quot;error&quot;], optional</span>
+<span class="sd">        How to handle the bounds of the image, by default &quot;pad&quot;. If &quot;pad&quot;, the image</span>
+<span class="sd">        will be padded with the padding value based on the padding mode. If &quot;error&quot;,</span>
+<span class="sd">        an error will be raised if any region exceeds the image bounds. NOTE:</span>
+<span class="sd">        clipping is not supported since returned stack may have inhomogeneous sizes.</span>
+<span class="sd">    padding_mode : Literal[&quot;constant&quot;, &quot;reflect&quot;, &quot;replicate&quot;], optional</span>
+<span class="sd">        The padding mode to use when padding the image, by default &quot;constant&quot;.</span>
+<span class="sd">        &quot;constant&quot; pads with the value `padding_value`, &quot;reflect&quot; pads with the</span>
+<span class="sd">        reflection of the image at the edge, and &quot;replicate&quot; pads with the last</span>
+<span class="sd">        pixel of the image. These match the modes available in</span>
+<span class="sd">        `torch.nn.functional.pad`.</span>
+<span class="sd">    padding_value : float, optional</span>
+<span class="sd">        The value to use for padding when `padding_mode` is &quot;constant&quot;, by default</span>
+<span class="sd">        0.0.</span>
+
 
 <span class="sd">    Returns</span>
 <span class="sd">    -------</span>
@@ -3363,10 +3595,10 @@ the original template size.</p>
             <span class="n">pos_y</span><span class="p">,</span>
             <span class="n">pos_x</span><span class="p">,</span>
             <span class="p">(</span><span class="n">image_h</span> <span class="o">-</span> <span class="n">h</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">image_w</span> <span class="o">-</span> <span class="n">w</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
-            <span class="n">pos_reference</span><span class="o">=</span><span class="s2">&quot;top-left&quot;</span><span class="p">,</span>
-            <span class="n">handle_bounds</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
-            <span class="n">padding_mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span>
-            <span class="n">padding_value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">pos_reference</span><span class="o">=</span><span class="n">pos_reference</span><span class="p">,</span>
+            <span class="n">handle_bounds</span><span class="o">=</span><span class="n">handle_bounds</span><span class="p">,</span>
+            <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+            <span class="n">padding_value</span><span class="o">=</span><span class="n">padding_value</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">stat_stack</span><span class="p">[</span><span class="n">indexes</span><span class="p">]</span> <span class="o">=</span> <span class="n">cropped_stat_maps</span>
 
@@ -3467,30 +3699,7 @@ and (h, w) is the output shape.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/leopard_em/pydantic_models/data_structures/particle_stack.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">496</span>
 <span class="normal">497</span>
 <span class="normal">498</span>
 <span class="normal">499</span>
@@ -3508,7 +3717,30 @@ and (h, w) is the output shape.</p>
 <span class="normal">511</span>
 <span class="normal">512</span>
 <span class="normal">513</span>
-<span class="normal">514</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct_filter_stack</span><span class="p">(</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct_filter_stack</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">preprocess_filters</span><span class="p">:</span> <span class="n">PreprocessingFilters</span><span class="p">,</span> <span class="n">output_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get stack of Fourier filters from filter config and reference micrographs.</span>
@@ -3941,30 +4173,7 @@ Angstroms.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/leopard_em/pydantic_models/data_structures/particle_stack.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span>
-<span class="normal">548</span>
-<span class="normal">549</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">549</span>
 <span class="normal">550</span>
 <span class="normal">551</span>
 <span class="normal">552</span>
@@ -3992,7 +4201,30 @@ Angstroms.</p>
 <span class="normal">574</span>
 <span class="normal">575</span>
 <span class="normal">576</span>
-<span class="normal">577</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_absolute_defocus</span><span class="p">(</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_absolute_defocus</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">prefer_refined_defocus</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the absolute defocus values for each particle.</span>
@@ -4099,15 +4331,15 @@ Angstroms.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/leopard_em/pydantic_models/data_structures/particle_stack.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">638</span>
-<span class="normal">639</span>
-<span class="normal">640</span>
-<span class="normal">641</span>
-<span class="normal">642</span>
-<span class="normal">643</span>
-<span class="normal">644</span>
-<span class="normal">645</span>
-<span class="normal">646</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_dataframe_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_dataframe_copy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a copy of the underlying DataFrame.</span>
 
 <span class="sd">    Returns</span>
@@ -4194,30 +4426,7 @@ correspond to (phi, theta, psi) in ZYZ format.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/leopard_em/pydantic_models/data_structures/particle_stack.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">602</span>
 <span class="normal">603</span>
 <span class="normal">604</span>
 <span class="normal">605</span>
@@ -4232,7 +4441,30 @@ correspond to (phi, theta, psi) in ZYZ format.</p>
 <span class="normal">614</span>
 <span class="normal">615</span>
 <span class="normal">616</span>
-<span class="normal">617</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_euler_angles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefer_refined_angles</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_euler_angles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefer_refined_angles</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the Euler angles (phi, theta, psi) of all particles as a tensor.</span>
 
 <span class="sd">    Parameters</span>
@@ -4424,17 +4656,17 @@ correspond to (phi, theta, psi) in ZYZ format.</p>
 
             <details class="quote">
               <summary>Source code in <code>src/leopard_em/pydantic_models/data_structures/particle_stack.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">626</span>
-<span class="normal">627</span>
-<span class="normal">628</span>
-<span class="normal">629</span>
-<span class="normal">630</span>
-<span class="normal">631</span>
-<span class="normal">632</span>
-<span class="normal">633</span>
-<span class="normal">634</span>
-<span class="normal">635</span>
-<span class="normal">636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_column</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Set a column in the underlying DataFrame.</span>
 
 <span class="sd">    Parameters</span>
