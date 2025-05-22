@@ -6,25 +6,27 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
+        <meta name="description" content="A basic overview of each of the built-in programs in Leopard-EM">
       
       
       
-        <link rel="prev" href="../programs/constrained_search/">
+      
+        <link rel="prev" href="../..">
       
       
-        <link rel="next" href="../examples/basic_configuration/">
+        <link rel="next" href="../match_template/">
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.5">
     
     
       
-        <title>Program Output Formats - Leopard-EM: Two-Dimensional Template Matching in Python</title>
+        <title>Overview of Leopard-EM programs - Leopard-EM: Two-Dimensional Template Matching in Python</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.8608ea7d.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.8608ea7d.min.css">
       
       
 
@@ -43,9 +45,9 @@
       
     
     
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -64,7 +66,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#description-of-data-formats" class="md-skip">
+        <a href="#programs-at-a-glance" class="md-skip">
           Skip to content
         </a>
       
@@ -80,7 +82,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Leopard-EM: Two-Dimensional Template Matching in Python" class="md-header__button md-logo" aria-label="Leopard-EM: Two-Dimensional Template Matching in Python" data-md-component="logo">
+    <a href="../.." title="Leopard-EM: Two-Dimensional Template Matching in Python" class="md-header__button md-logo" aria-label="Leopard-EM: Two-Dimensional Template Matching in Python" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -100,7 +102,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Program Output Formats
+              Overview of Leopard-EM programs
             
           </span>
         </div>
@@ -175,7 +177,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Leopard-EM: Two-Dimensional Template Matching in Python" class="md-nav__button md-logo" aria-label="Leopard-EM: Two-Dimensional Template Matching in Python" data-md-component="logo">
+    <a href="../.." title="Leopard-EM: Two-Dimensional Template Matching in Python" class="md-nav__button md-logo" aria-label="Leopard-EM: Two-Dimensional Template Matching in Python" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -193,7 +195,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -211,17 +213,19 @@
       
   
   
+    
   
   
+  
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
@@ -236,7 +240,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             Programs
@@ -247,10 +251,31 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../programs/overview/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -260,6 +285,71 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#match-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Match Template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refine-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Refine Template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimize-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimize Template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constrained-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Constrained Search
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimize-b-factor-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimize B-Factor script
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -272,7 +362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../programs/match_template/" class="md-nav__link">
+      <a href="../match_template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -294,7 +384,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../programs/refine_template/" class="md-nav__link">
+      <a href="../refine_template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -316,7 +406,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../programs/optimize_template/" class="md-nav__link">
+      <a href="../optimize_template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -338,7 +428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../programs/constrained_search/" class="md-nav__link">
+      <a href="../constrained_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -364,31 +454,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Program Output Formats
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../data_formats/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -398,98 +467,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#data-from-the-match-template-program" class="md-nav__link">
-    <span class="md-ellipsis">
-      Data from the match template program
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Data from the match template program">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#best-statistic-maps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Best statistic maps
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Best statistic maps">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#a-note-on-correlation-modes-and-output-shapes" class="md-nav__link">
-    <span class="md-ellipsis">
-      A note on correlation modes and output shapes
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#match-template-dataframe" class="md-nav__link">
-    <span class="md-ellipsis">
-      Match template DataFrame
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-from-the-refine-template-program" class="md-nav__link">
-    <span class="md-ellipsis">
-      Data from the refine template program
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Data from the refine template program">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#refine-template-dataframe" class="md-nav__link">
-    <span class="md-ellipsis">
-      Refine template DataFrame
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -537,7 +514,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/basic_configuration/" class="md-nav__link">
+      <a href="../../examples/basic_configuration/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -566,7 +543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -635,7 +612,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -679,7 +656,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/analysis/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/analysis/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -711,7 +688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/analysis/match_template_peaks/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/analysis/match_template_peaks/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -733,7 +710,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/analysis/pvalue_metric/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/analysis/pvalue_metric/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -755,7 +732,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/analysis/utils/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/analysis/utils/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -777,7 +754,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/analysis/zscore_metric/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/analysis/zscore_metric/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -819,7 +796,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/backend/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/backend/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -851,7 +828,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/backend/core_match_template/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/backend/core_match_template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -873,7 +850,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/backend/core_refine_template/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/backend/core_refine_template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -895,7 +872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/backend/process_results/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/backend/process_results/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -917,7 +894,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/backend/utils/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/backend/utils/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -959,7 +936,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/pydantic_models/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/pydantic_models/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -1003,7 +980,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/pydantic_models/config/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/pydantic_models/config/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -1035,7 +1012,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/config/computational_config/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/config/computational_config/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1057,7 +1034,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/config/correlation_filters/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/config/correlation_filters/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1079,7 +1056,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/config/defocus_search/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/config/defocus_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1101,7 +1078,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/config/orientation_search/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/config/orientation_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1123,7 +1100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/config/pixel_size_search/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/config/pixel_size_search/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1153,7 +1130,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/custom_types/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/custom_types/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1187,7 +1164,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/pydantic_models/data_structures/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/pydantic_models/data_structures/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -1219,7 +1196,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/data_structures/optics_group/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/data_structures/optics_group/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1241,7 +1218,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/data_structures/particle_stack/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/data_structures/particle_stack/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1271,7 +1248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/formats/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/formats/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1305,7 +1282,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/pydantic_models/managers/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/pydantic_models/managers/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -1337,7 +1314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/managers/constrained_search_manager/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/managers/constrained_search_manager/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1359,7 +1336,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/managers/match_template_manager/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/managers/match_template_manager/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1381,7 +1358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/managers/optimize_template_manager/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/managers/optimize_template_manager/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1403,7 +1380,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/managers/refine_template_manager/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/managers/refine_template_manager/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1445,7 +1422,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/pydantic_models/results/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/pydantic_models/results/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -1477,7 +1454,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/results/match_template_result/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/results/match_template_result/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1507,7 +1484,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/pydantic_models/utils/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/pydantic_models/utils/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1549,7 +1526,7 @@
           
           
           <div class="md-nav__link md-nav__container">
-            <a href="../autoapi/leopard_em/utils/" class="md-nav__link ">
+            <a href="../../autoapi/leopard_em/utils/" class="md-nav__link ">
               
   
   <span class="md-ellipsis">
@@ -1581,7 +1558,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/utils/cross_correlation/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/utils/cross_correlation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1603,7 +1580,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/utils/data_io/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/utils/data_io/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1625,7 +1602,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../autoapi/leopard_em/utils/fourier_slice/" class="md-nav__link">
+      <a href="../../autoapi/leopard_em/utils/fourier_slice/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1690,74 +1667,47 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#data-from-the-match-template-program" class="md-nav__link">
+  <a href="#match-template" class="md-nav__link">
     <span class="md-ellipsis">
-      Data from the match template program
+      Match Template
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Data from the match template program">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#best-statistic-maps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Best statistic maps
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Best statistic maps">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#a-note-on-correlation-modes-and-output-shapes" class="md-nav__link">
-    <span class="md-ellipsis">
-      A note on correlation modes and output shapes
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#match-template-dataframe" class="md-nav__link">
-    <span class="md-ellipsis">
-      Match template DataFrame
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#data-from-the-refine-template-program" class="md-nav__link">
+  <a href="#refine-template" class="md-nav__link">
     <span class="md-ellipsis">
-      Data from the refine template program
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Data from the refine template program">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#refine-template-dataframe" class="md-nav__link">
-    <span class="md-ellipsis">
-      Refine template DataFrame
+      Refine Template
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#optimize-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimize Template
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constrained-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Constrained Search
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimize-b-factor-script" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimize B-Factor script
+    </span>
+  </a>
   
 </li>
       
@@ -1777,329 +1727,66 @@
 
 
 
-<h1 id="description-of-data-formats">Description of Data Formats</h1>
-<p>To increase interoperability between external packages, we herein describe the different data formats used as input to and export from programs.
-Orientations on a per-particle bases are currently stored as <a href="https://en.wikipedia.org/wiki/Euler_angles#">Euler angles</a> in ZYZ format with angles ordered as <script type="math/tex"> \phi, \theta, \psi </script>.</p>
+<h1 id="programs-at-a-glance">Programs at a glance</h1>
+<p>The Leopard-EM package currently has five main programs which are easily user-configurable through YAML files and are runnable from Python scripts. These five programs encompass a variety of 2DTM data processing workflows. Here, we provide a brief overview of each program's functionality and the necessary input data for that program. Detailed information on configuring and running each program can be found on their respective pages, linked below.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Leopard-Em is still undergoing development, and the exact way the data is represented might change in the future.
-We will document any data format changes between versions.</p>
+<p>The functionality of Leopard-EM extends beyond just these five programs. We encourage users to leverage the modular Pydantic models and backend functions to build more complex cryo-EM workflows.</p>
 </div>
-<h2 id="data-from-the-match-template-program">Data from the match template program</h2>
-<p>The match template program collates statistics from a large number of cross-correlograms taken over an orientation and defocus search space.
-See the API on the <code>MatchTemplateResult</code> object for further information on how these data are stored in memory, but here we provide an overview of what files get written to disk.</p>
-<h3 id="best-statistic-maps">Best statistic maps</h3>
-<p>Each of the "best" statistics (i.e. orientation, defocus) is stored on a per-position basis in what we dub "statistics maps" saved as <code>.mrc</code> files.
-We have the following tracked statistics for each valid (x, y) position:</p>
+<h2 id="match-template">Match Template</h2>
+<p>The <code>match_template</code> program searches for regions in a 2D micrograph containing a macromolecule using a simulated reference structure.
+The configuration parameters define how the search space (orientation &amp; defocus) is sampled, what pre-processing filters to apply, and where to save the result files from the program.
+The <a href="../match_template/">match template program details</a> contains further information on configuring the program.</p>
+<p>The required inputs (besides config fields) for <code>match_template</code> are:</p>
 <ul>
-<li>Maximum Intensity Projection (MIP): Maximum attained cross-correlation value over the entire search space.</li>
-<li>Scaled MIP (z-score or 2DTM SNR): The MIP value normalized by the mean and variance of the cross-correlation over the entire search space.</li>
-<li>Correlation Mean: The mean of the cross-correlation values over the entire search space. Used to calculate the scaled MIP.</li>
-<li>Correlation Variance: The variance of the cross-correlation values over the entire search space. Used to calculate the scaled MIP.</li>
-<li>Phi: The <script type="math/tex"> \phi </script> angle (in degrees) which produced the MIP value.</li>
-<li>Theta: The <script type="math/tex"> \theta </script> angle (in degrees) which produced the MIP value.</li>
-<li>Psi: The <script type="math/tex"> \psi </script> angle (in degrees) which produced the MIP value.</li>
-<li>Defocus: The relative defocus value (in Angstroms, relative to CTF defocus of micrograph) which produced the MIP value.</li>
+<li>A processed 2D micrograph (aligned and summed),</li>
+<li>The estimated CTF defocus parameters for that micrograph, and</li>
+<li>A simulated 3D reference template (see package <a href="https://github.com/teamtomo/ttsim3d">ttsim3d</a> for simulating reference templates).</li>
 </ul>
-<p>Each of these statistics maps are saved to disk in the <a href="https://www.ccpem.ac.uk/mrc-format/mrc2014/">MRC format</a> based on paths provided in the <code>MatchTemplateResult</code> object.</p>
-<h4 id="a-note-on-correlation-modes-and-output-shapes">A note on correlation modes and output shapes</h4>
-<p>Three general modes for convolution/correlation exist in digital signal processing: "full", "same", and "valid".
-<a href="https://brianmcfee.net/dstbook-site/content/ch03-convolution/Modes.html">This chapter of Digital Signals Theory</a> provides a good overview of these modes.</p>
-<p>We use the the "valid" mode by default when saving these statistics maps, but they are initially stored in their "same" modes.
-The <code>MatchTemplateResult.apply_valid_cropping</code> method does this "same" to "valid" cropping.
-For an image with shape <script type="math/tex"> (H, W) </script> and template <script type="math/tex"> (h, w) </script>, the modes will output statistics maps with the following shapes:</p>
+<h2 id="refine-template">Refine Template</h2>
+<p>After the <code>match_template</code> program identifies particles from a "coarse" search, the <code>refine_template</code> program locally refines the orientation, location, and defocus parameters on a per-particle basis.
+The desired degree of angular &amp; defocus accuracy are configurable parameters, and many of the other fields should be copied directly from the <code>match_template</code> config.
+The <a href="../refine_template/">refine template program details</a> has further information on configuring the program.</p>
+<p>The required inputs for <code>refine_template</code> are:</p>
 <ul>
-<li>same: <script type="math/tex"> (H, W) </script>
-</li>
-<li>valid: <script type="math/tex"> (H - h + 1, W - w + 1) </script>
-</li>
+<li>A simulated 3D reference template (see package <a href="https://github.com/teamtomo/ttsim3d">ttsim3d</a> for simulating reference templates), and</li>
+<li>The csv file of particle locations and orientations output from the <code>match_template</code> program.</li>
 </ul>
-<p>Note that same mode pads the image with zeros along the edges and <em>does not</em> increase the number of particles detectable; values along the padded portions of the edge do not hold significance in the context of the particle detection.
-In each case, the position in the map at <script type="math/tex"> (i, j) </script> corresponds to the top-left corner of the template projection at that position, <em>not</em> the center of the template.</p>
-<p>There are, however, the <code>pos_{x,y}_img</code> columns in the exported DataFrame after match template whose values do correspond to the center of the particle.</p>
-<!-- TODO: Figure out how to properly style the svg so it fits on the page -->
-<!-- Below is an example comparing the two correlation modes:
-
-<img src="../static/correlation_modes.svg" alt="Diagram showing correlation modes and output sizes" style="width: 50%;"> -->
-
-<h3 id="match-template-dataframe">Match template <strong>DataFrame</strong></h3>
-<p>Since not all positions <script type="math/tex"> (x, y) </script> contain a particle from the match template search, using full statistics maps for downstream analysis can be inefficient in terms of speed, memory requirements, and code overhead.
-The match template manager class has the method <code>MatchTemplateManager.results_to_dataframe()</code> which automatically picks peaks within the scaled MIP map and stores the peak locations, orientations, and defocus values in a pandas DataFrame.
-This is automatically called when using the provided match template program script.</p>
-<p>We take a verbose approach to constructing this DataFrame where some columns store similar information about each particle.
-Additional columns besides locations and orientations are included in the DataFrame to increase the utility of the data, namely the construction of <code>ParticleStack</code> objects.
-The columns and corresponding descriptions are as follows:</p>
-<table>
-<thead>
-<tr>
-<th>Column Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>particle_index</code></td>
-<td>int</td>
-<td>An integer descriptor for ordering picked particles. Useful when operating on multiple dataframes.</td>
-</tr>
-<tr>
-<td><code>mip</code></td>
-<td>float</td>
-<td>Maximum cross-correlation value over all search orientations and relative defocus values.</td>
-</tr>
-<tr>
-<td><code>scaled_mip</code></td>
-<td>float</td>
-<td>Scaled MIP value (z-score) normalized by cross-correlation mean and variance.</td>
-</tr>
-<tr>
-<td><code>correlation_mean</code></td>
-<td>float</td>
-<td>Mean of the cross-correlation values over the entire search space.</td>
-</tr>
-<tr>
-<td><code>correlation_variance</code></td>
-<td>float</td>
-<td>Variance of the cross-correlation values over the entire search space.</td>
-</tr>
-<tr>
-<td><code>total_correlations</code></td>
-<td>int</td>
-<td>Total number of cross-correlations performs in the search space (number of defocus planes times number of orientations).</td>
-</tr>
-<tr>
-<td><code>pos_x</code></td>
-<td>int</td>
-<td>Particle x position (units of pixels) in the statistics maps. Corresponds to the top-left corner of the template.</td>
-</tr>
-<tr>
-<td><code>pos_y</code></td>
-<td>int</td>
-<td>Particle y position (units of pixels) in the statistics maps. Corresponds to the top-left corner of the template.</td>
-</tr>
-<tr>
-<td><code>pos_x_img</code></td>
-<td>int</td>
-<td>Center of of the particle (x position, units of pixels) in the micrograph.</td>
-</tr>
-<tr>
-<td><code>pos_y_img</code></td>
-<td>int</td>
-<td>Center of of the particle (y position, units of pixels) in the micrograph.</td>
-</tr>
-<tr>
-<td><code>pos_x_img_angstrom</code></td>
-<td>float</td>
-<td>Center of the particle (x position, in <em>Angstroms</em>) in the micrograph.</td>
-</tr>
-<tr>
-<td><code>pos_y_img_angstrom</code></td>
-<td>float</td>
-<td>Center of the particle (y position, in <em>Angstroms</em>) in the micrograph.</td>
-</tr>
-<tr>
-<td><code>phi</code></td>
-<td>float</td>
-<td>The <script type="math/tex"> \phi </script> angle which (in degrees) produced the MIP value. Orientation angles are in the ZYZ format.</td>
-</tr>
-<tr>
-<td><code>theta</code></td>
-<td>float</td>
-<td>The <script type="math/tex"> \theta </script> angle (in degrees) which produced the MIP value. Orientation angles are in the ZYZ format.</td>
-</tr>
-<tr>
-<td><code>psi</code></td>
-<td>float</td>
-<td>The <script type="math/tex"> \psi </script> angle (in degrees) which produced the MIP value. Orientation angles are in the ZYZ format.</td>
-</tr>
-<tr>
-<td><code>relative_defocus</code></td>
-<td>float</td>
-<td>The relative defocus value (in Angstroms) which produced the MIP value. Relative to <code>defocus_u</code> and <code>defocus_v</code>.</td>
-</tr>
-<tr>
-<td><code>defocus_u</code></td>
-<td>float</td>
-<td>Defocus value along the major axis for the <strong>micrograph</strong> (in Angstroms).</td>
-</tr>
-<tr>
-<td><code>defocus_v</code></td>
-<td>float</td>
-<td>Defocus value along the minor axis for the <strong>micrograph</strong> (in Angstroms).</td>
-</tr>
-<tr>
-<td><code>astigmatism_angle</code></td>
-<td>float</td>
-<td>Angle of the astigmatism (in degrees) for defocus.</td>
-</tr>
-<tr>
-<td><code>pixel_size</code></td>
-<td>float</td>
-<td>Pixel size of the micrograph (in Angstroms).</td>
-</tr>
-<tr>
-<td><code>voltage</code></td>
-<td>float</td>
-<td>Voltage of the microscope (in kV).</td>
-</tr>
-<tr>
-<td><code>spherical_aberration</code></td>
-<td>float</td>
-<td>Spherical aberration of the microscope (in mm).</td>
-</tr>
-<tr>
-<td><code>amplitude_contrast_ratio</code></td>
-<td>float</td>
-<td>Amplitude contrast ratio of the microscope.</td>
-</tr>
-<tr>
-<td><code>phase_shift</code></td>
-<td>float</td>
-<td>Phase shift of the microscope (in degrees).</td>
-</tr>
-<tr>
-<td><code>ctf_B_factor</code></td>
-<td>float</td>
-<td>B-factor of the CTF, in Angstroms^2.</td>
-</tr>
-<tr>
-<td><code>micrograph_path</code></td>
-<td>str</td>
-<td>Path to the micrograph searched over in the match template program. Can be used to identify where particles came from when data frames from multiple match template runs are merged.</td>
-</tr>
-<tr>
-<td><code>template_path</code></td>
-<td>str</td>
-<td>Path to the template used for the search.</td>
-</tr>
-<tr>
-<td><code>mip_path</code></td>
-<td>str</td>
-<td>Path to the saved MIP map.</td>
-</tr>
-<tr>
-<td><code>scaled_mip_path</code></td>
-<td>str</td>
-<td>Path to the saved scaled MIP map.</td>
-</tr>
-<tr>
-<td><code>psi_path</code></td>
-<td>str</td>
-<td>Path to the saved psi map.</td>
-</tr>
-<tr>
-<td><code>theta_path</code></td>
-<td>str</td>
-<td>Path to the saved theta map.</td>
-</tr>
-<tr>
-<td><code>phi_path</code></td>
-<td>str</td>
-<td>Path to the saved phi map.</td>
-</tr>
-<tr>
-<td><code>defocus_path</code></td>
-<td>str</td>
-<td>Path to the saved defocus map.</td>
-</tr>
-<tr>
-<td><code>correlation_average_path</code></td>
-<td>str</td>
-<td>Path to the saved correlation mean map.</td>
-</tr>
-<tr>
-<td><code>correlation_variance_path</code></td>
-<td>str</td>
-<td>Path to the saved correlation variance map.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="data-from-the-refine-template-program">Data from the refine template program</h2>
-<p>The refine template program takes in the DataFrame from the match template program and refines the orientation &amp; defocus values of each particle.
-Each of the refined parameters are stored in new columns prefixed with the <code>refined_</code> string.
-Note that refined results can be re-refined, for example with a slightly different template, and the already refined parameters will be used.
-When using the results from a refine template run, say to construct a particle stack, columns with the <code>refined_</code> prefix will be used by default, if they are present.</p>
-<h3 id="refine-template-dataframe">Refine template <strong>DataFrame</strong></h3>
-<p>The program outputs another DataFrame with additional columns for the refined orientations, defocus values, and positions.
-New columns with descriptions are listed below:</p>
-<table>
-<thead>
-<tr>
-<th>Column Name</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>refined_mip</code></td>
-<td>float</td>
-<td>New maximum cross-correlation over refinement search space.</td>
-</tr>
-<tr>
-<td><code>refined_scaled_mip</code></td>
-<td>float</td>
-<td>New scaled MIP value (z-score) normalized by cross-correlation mean and variance.</td>
-</tr>
-<tr>
-<td><code>refined_pos_x</code></td>
-<td>int</td>
-<td>The refined x position of the particle, top-left corner of the template.</td>
-</tr>
-<tr>
-<td><code>refined_pos_y</code></td>
-<td>int</td>
-<td>The refined y position of the particle, top-left corner of the template.</td>
-</tr>
-<tr>
-<td><code>refined_pos_x_img</code></td>
-<td>int</td>
-<td>The refined x position of the particle, center of the particle in the micrograph.</td>
-</tr>
-<tr>
-<td><code>refined_pos_y_img</code></td>
-<td>int</td>
-<td>The refined y position of the particle, center of the particle in the micrograph.</td>
-</tr>
-<tr>
-<td><code>refined_pos_x_img_angstrom</code></td>
-<td>float</td>
-<td>The refined x position of the particle, center of the particle in the micrograph (in Angstroms).</td>
-</tr>
-<tr>
-<td><code>refined_pos_y_img_angstrom</code></td>
-<td>float</td>
-<td>The refined y position of the particle, center of the particle in the micrograph (in Angstroms).</td>
-</tr>
-<tr>
-<td><code>refined_phi</code></td>
-<td>float</td>
-<td>The refined <script type="math/tex"> \phi </script> angle (in degrees).</td>
-</tr>
-<tr>
-<td><code>refined_theta</code></td>
-<td>float</td>
-<td>The refined <script type="math/tex"> \theta </script> angle (in degrees).</td>
-</tr>
-<tr>
-<td><code>refined_psi</code></td>
-<td>float</td>
-<td>The refined <script type="math/tex"> \psi </script> angle (in degrees).</td>
-</tr>
-<tr>
-<td><code>refined_relative_defocus</code></td>
-<td>float</td>
-<td>The refined relative defocus value (in Angstroms).</td>
-</tr>
-</tbody>
-</table>
+<h2 id="optimize-template">Optimize Template</h2>
+<p>The 2DTM SNR is extremely sensitive to incorrect pixel size in the reference template structure.
+Since not all deposited structures have accurate pixel sizes, we include the <code>optimize_template</code> program to maximize 2DTM SNR values by varying the pixel size of the map.
+A set of pre-identified particles are used (rather than doing a full-image search) for computational efficiency.
+The <a href="../optimize_template/">optimize template program details</a> contains further information on configuring the program.</p>
+<p>The required inputs for <code>optimize_template</code> are:</p>
+<ul>
+<li>Simulation configuration for the <a href="https://github.com/teamtomo/ttsim3d">ttsim3d</a> package including the reference structure, and</li>
+<li>The csv file of particle locations and orientations output from either the <code>match_template</code> or <code>refine_template</code> program.</li>
+</ul>
+<h2 id="constrained-search">Constrained Search</h2>
+<p>The <code>constrained_search</code> program uses pre-identified locations and orientations of a reference particle (lets call it particle A) to constrain the search space for another particle (called particle B); constraining the search space increases the sensitivity of 2DTM.
+This is useful when particle A is easier to identify with 2DTM and when prior knowledge about the spatial relationship between particles A and B is available.
+See the <a href="../examples/constrained_search/constrained_search.ipynb">constrained 40S ribosome example</a> for a detailed demonstration of setting up and analyzing a constrained 2DTM search.
+Along with the tutorial above, the <a href="../constrained_search/">constrained search program details</a> contains further information on configuration the program.</p>
+<p>The required inputs for <code>constrained_search</code> are:</p>
+<ul>
+<li>A simulated 3D reference template (see package <a href="https://github.com/teamtomo/ttsim3d">ttsim3d</a>) of the constrained particle to search for,</li>
+<li>The relative position, (x, y, z), and relative orientation between the reference and constrained particle,</li>
+<li>A particle stack csv (from <code>match_template</code> or <code>refine_template</code>) for the reference particle,</li>
+<li>A particle stack csv (from <code>match_template</code>) for the constrained particle, and</li>
+<li>Estimates on the relative position &amp; orientation as well as flexibility of the constrained particle.</li>
+</ul>
+<h2 id="optimize-b-factor-script">Optimize B-Factor script</h2>
+<p>In addition to the four larger programs, we have a script, <a href="https://github.com/Lucaslab-Berkeley/Leopard-EM/blob/main/programs/optimize_b_factor.py">optimize_b_factor.py</a>, which varies the B-factor applied across a model to maximize one of four SNR metrics. This <em>ad hoc</em> B-factor can help account for increased sample structural heterogeneity which is not captured in the input model, or it can help select for particles which closely match the reference template model.</p>
+<p>The script uses <code>match_template</code> under-the-hood to re-calculate the 2DTM SNR of particles over a variety of CTF B-factors. In addition to parameters modifiable within the script, the program inputs are the same as the <a href="#match-template">match template program</a>.</p>
 
 
 
 
 
 
+
+  
+  
 
 
 
@@ -2140,10 +1827,10 @@ New columns with descriptions are listed below:</p>
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.f1b6f286.min.js"></script>
+      <script src="../../assets/javascripts/bundle.f1b6f286.min.js"></script>
       
         <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
       
