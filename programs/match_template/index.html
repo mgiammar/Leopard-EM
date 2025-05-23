@@ -311,6 +311,50 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/04_plotting_2dtm_results" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Plotting match template results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/05_structure_reprojection/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Structure projections on an Image
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2066,7 +2110,7 @@ The <code>psi_step</code> field controls how many degrees are between two consec
 </code></pre></div>
 <h3 id="configuring-the-pre-processing-filters">Configuring the pre-processing filters</h3>
 <p>Pre-processing filters are applied to both the image and template in Fourier space.
-Below, we briefly discuss the parameter choices for the whitening and band-pass filters, the two most commonly used 2DTM filters. There are two additional pre-processing filters, phase-randomization &amp; arbitrary curve, whose configuration is discussed <a href="../examples/basic_configuration.ipynb">here</a>.
+Below, we briefly discuss the parameter choices for the whitening and band-pass filters, the two most commonly used 2DTM filters. There are two additional pre-processing filters, phase-randomization &amp; arbitrary curve, whose configuration is discussed <a href="../../examples/01_basic_configuration/">here</a>.
 In most cases, the default values should suffice, but nevertheless the knobs to tweak how calculations are performed are included for completeness' sake.</p>
 <h4 id="whitening-filter">Whitening filter</h4>
 <p>The whitening filter, with parameters defined under <code>preprocessing_filters.whitening_filter</code>, flattens the 1D power spectrum of the image so each frequency component contributes equally to the cross-corelation; the same filter is applied to template projections.
