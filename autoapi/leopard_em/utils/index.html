@@ -1828,6 +1828,7 @@
     <div class="doc doc-contents ">
 
         <p>Handle cropping for cross correlation mode.</p>
+<p>NOTE: 'full' mode is not implemented.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -1883,8 +1884,9 @@
             <td>
               <div class="doc-md-description">
                 <p>The mode of the cross correlation. Either 'valid' or 'same'. See
-<a href="https://numpy.org/doc/stable/reference/generated/numpy.convolve.html#numpy.convolve">numpy.correlate</a>
-for more details. NOTE: 'full' mode is not implemented.</p>
+<a href="https://numpy.org/doc/stable/reference/generated/
+numpy.convolve.html#numpy.convolve">numpy.correlate</a>
+for more details.</p>
               </div>
             </td>
             <td>
@@ -1926,12 +1928,17 @@ for more details. NOTE: 'full' mode is not implemented.</p>
 <span class="normal">34</span>
 <span class="normal">35</span>
 <span class="normal">36</span>
-<span class="normal">37</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">handle_correlation_mode</span><span class="p">(</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">handle_correlation_mode</span><span class="p">(</span>
     <span class="n">cross_correlation</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">out_shape</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">],</span>
     <span class="n">mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;valid&quot;</span><span class="p">,</span> <span class="s2">&quot;same&quot;</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle cropping for cross correlation mode.</span>
+
+<span class="sd">     NOTE: &#39;full&#39; mode is not implemented.</span>
 
 <span class="sd">    Parameters</span>
 <span class="sd">    ----------</span>
@@ -1941,8 +1948,9 @@ for more details. NOTE: 'full' mode is not implemented.</p>
 <span class="sd">        The desired shape of the output.</span>
 <span class="sd">    mode : Literal[&quot;valid&quot;, &quot;same&quot;]</span>
 <span class="sd">        The mode of the cross correlation. Either &#39;valid&#39; or &#39;same&#39;. See</span>
-<span class="sd">        [numpy.correlate](https://numpy.org/doc/stable/reference/generated/numpy.convolve.html#numpy.convolve)</span>
-<span class="sd">        for more details. NOTE: &#39;full&#39; mode is not implemented.</span>
+<span class="sd">        [numpy.correlate](https://numpy.org/doc/stable/reference/generated/</span>
+<span class="sd">        numpy.convolve.html#numpy.convolve)</span>
+<span class="sd">        for more details.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="c1"># Crop the result to the valid bounds</span>
     <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;valid&quot;</span><span class="p">:</span>

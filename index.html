@@ -311,9 +311,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#match-template-example" class="md-nav__link">
+  <a href="#minimal-match-template-example" class="md-nav__link">
     <span class="md-ellipsis">
-      Match template example
+      Minimal match template example
     </span>
   </a>
   
@@ -1927,9 +1927,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#match-template-example" class="md-nav__link">
+  <a href="#minimal-match-template-example" class="md-nav__link">
     <span class="md-ellipsis">
-      Match template example
+      Minimal match template example
     </span>
   </a>
   
@@ -2003,11 +2003,11 @@
 
 <h1 id="leopard-em">Leopard-EM</h1>
 <p>Welcome to the <strong>L</strong>ocation &amp; ori<strong>E</strong>ntati<strong>O</strong>n of <strong>PAR</strong>ticles found using two-<strong>D</strong>imensional t<strong>E</strong>mplate <strong>M</strong>atching (Leopard-EM) online documentation!
-Leopard-EM is a Python implementation of Two-Dimensional Template Matching (2DTM) which itself is a data analysis method in cryo-EM.
-This package reflects most of the functionality described in Lucas, <em>et al.</em> (2021)<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> with additional user-friendly features for integrating into broader data science workflows.</p>
+Leopard-EM is a Python implementation of Two-Dimensional Template Matching (2DTM) which itself is a data processing method in cryo-EM for locating and orienting particles using a reference structure.
+This package currently reflects the functionality described in Lucas, <em>et al.</em> (2021)<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> with additional programs to maximize the usefulness of 2DTM as well as other user-friendly features for integrating into broader data science workflows.</p>
 <div class="admonition note">
 <p class="admonition-title">Citing this work</p>
-<p>If you use Leopard-EM in your research, please cite ((TODO: add manuscript link)).</p>
+<p>If you use Leopard-EM in your research, please cite (coming soon!).</p>
 </div>
 <h2 id="installation">Installation</h2>
 <h3 id="requirements">Requirements</h3>
@@ -2026,8 +2026,8 @@ Please open a <a href="https://github.com/Lucaslab-Berkeley/Leopard-EM/issues/ne
 </div>
 <div class="admonition caution">
 <p class="admonition-title">Tested GPU support</p>
-<p>Leopard-EM has only been tested against NVIDIA GPUs but should run on most modern (supported by PyTorch) GPU hardware.
-If you've found a compatibility issue, <a href="https://github.com/Lucaslab-Berkeley/Leopard-EM/issues/new">create an issue on GitHub</a>.</p>
+<p>Leopard-EM has only been tested against NVIDIA GPUs but should run on most modern GPU hardware (supported by PyTorch).
+If you've experienced a compatibility issue, <a href="https://github.com/Lucaslab-Berkeley/Leopard-EM/issues/new">create an issue on GitHub</a>.</p>
 </div>
 <h3 id="pre-packaged-releases">Pre-packaged releases</h3>
 <p>Pre-packaged versions of Leopard-EM are released on the Python Package Index (PyPI).
@@ -2060,94 +2060,102 @@ There are currently five main programs (located under <a href="https://github.co
 Detailed documentation for each program can be found on the <a href="programs/overview/">Program Documentation Overview</a>, but the five main programs are as follows:</p>
 <ol>
 <li><code>match_template</code> - Runs a whole orientation search for a given reference structure on a single micrograph.</li>
-<li><code>refine_template</code> - Takes particles identified from match_template and refines their location, orientation, and defocus parameters.</li>
+<li><code>refine_template</code> - Takes particles identified from match template and refines their location, orientation, and defocus parameters.</li>
 <li><code>optimize_template</code> - Optimizes the pixel size of the micrograph and template structure model using a set of identified particles.</li>
 <li><code>constrained_search</code> - Uses the location and orientation of identified particles to constrain the search parameters of a second particle.</li>
 <li><code>optimize_b_factor.py</code> - Script to optimize the b-factor added to a model (using 2DTM) for a set of metrics.</li>
 </ol>
 <!-- A minimally working Python script for running the match template program is shown below -->
 
-<h3 id="match-template-example">Match template example</h3>
+<h3 id="minimal-match-template-example">Minimal match template example</h3>
 <p>The following Python script will run a basic match template program using only the built-in Pydantic models.
 See the programs documentation page for more details on running each program.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.managers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MatchTemplateManager</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MatchTemplateResult</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpticsGroup</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">DefocusSearchConfig</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">DefocusSearchConfig</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrientationSearchConfig</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ComputationalConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">PreprocessingFilters</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.data_structures</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpticsGroup</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.managers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MatchTemplateManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">leopard_em.pydantic_models.results</span><span class="w"> </span><span class="kn">import</span> <span class="n">MatchTemplateResult</span>
 
-<span class="c1"># Microscope imaging parameters</span>
-<span class="n">my_optics_group</span> <span class="o">=</span> <span class="n">OpticsGroup</span><span class="p">(</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;my_optics_group&quot;</span><span class="p">,</span>
-    <span class="n">pixel_size</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span>    <span class="c1"># In Angstroms</span>
-    <span class="n">voltage</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>       <span class="c1"># In kV</span>
-    <span class="n">defocus_u</span><span class="o">=</span><span class="mf">5100.0</span><span class="p">,</span>  <span class="c1"># In Angstroms</span>
-    <span class="n">defocus_v</span><span class="o">=</span><span class="mf">4900.0</span><span class="p">,</span>  <span class="c1"># In Angstroms</span>
-    <span class="n">astigmatism_angle</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># In degrees</span>
-<span class="p">)</span>
 
-<span class="c1"># Relative defocus planes to search across</span>
-<span class="n">df_search_config</span> <span class="o">=</span> <span class="n">DefocusSearchConfig</span><span class="p">(</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;defocus_search&quot;</span><span class="p">,</span>
-    <span class="n">min_defocus</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>   <span class="c1"># In Angstroms, relative</span>
-    <span class="n">max_defocus</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span>  <span class="c1"># In Angstroms, relative</span>
-    <span class="n">step_size</span><span class="o">=</span><span class="mf">200.0</span><span class="p">,</span>    <span class="c1"># In Angstroms</span>
-<span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">setup_match_template_manager</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to set up MatchTemplateManager Pydantic model.&quot;&quot;&quot;</span>
+    <span class="c1"># Microscope imaging parameters</span>
+    <span class="n">my_optics_group</span> <span class="o">=</span> <span class="n">OpticsGroup</span><span class="p">(</span>
+        <span class="n">label</span><span class="o">=</span><span class="s2">&quot;my_optics_group&quot;</span><span class="p">,</span>
+        <span class="n">pixel_size</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span>    <span class="c1"># In Angstroms</span>
+        <span class="n">voltage</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>       <span class="c1"># In kV</span>
+        <span class="n">defocus_u</span><span class="o">=</span><span class="mf">5100.0</span><span class="p">,</span>  <span class="c1"># In Angstroms</span>
+        <span class="n">defocus_v</span><span class="o">=</span><span class="mf">4900.0</span><span class="p">,</span>  <span class="c1"># In Angstroms</span>
+        <span class="n">astigmatism_angle</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>  <span class="c1"># In degrees</span>
+    <span class="p">)</span>
 
-<span class="c1"># Orientation sampling of SO(3) space, using default</span>
-<span class="n">orientation_search_config</span> <span class="o">=</span> <span class="n">OrientationSearchConfig</span><span class="p">()</span>
+    <span class="c1"># Relative defocus planes to search across</span>
+    <span class="n">df_search_config</span> <span class="o">=</span> <span class="n">DefocusSearchConfig</span><span class="p">(</span>
+        <span class="n">defocus_min</span><span class="o">=-</span><span class="mi">1000</span><span class="p">,</span>  <span class="c1"># In Angstroms, relative to defocus_{u,v}</span>
+        <span class="n">defocus_max</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>   <span class="c1"># In Angstroms, relative to defocus_{u,v}</span>
+        <span class="n">defocus_step</span><span class="o">=</span><span class="mf">200.0</span><span class="p">,</span>    <span class="c1"># In Angstroms</span>
+    <span class="p">)</span>
 
-<span class="c1"># Where to save the output results</span>
-<span class="n">mt_result</span> <span class="o">=</span> <span class="n">MatchTemplateResult</span><span class="p">(</span>
-    <span class="n">allow_file_overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">mip_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_mip.mrc&quot;</span><span class="p">,</span>
-    <span class="n">scaled_mip_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_scaled_mip.mrc&quot;</span><span class="p">,</span>
-    <span class="n">correlation_average_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_correlation_average.mrc&quot;</span><span class="p">,</span>
-    <span class="n">correlation_variance_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_correlation_variance.mrc&quot;</span><span class="p">,</span>
-    <span class="n">orientation_psi_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_orientation_psi.mrc&quot;</span><span class="p">,</span>
-    <span class="n">orientation_theta_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_orientation_theta.mrc&quot;</span><span class="p">,</span>
-    <span class="n">orientation_phi_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_orientation_phi.mrc&quot;</span><span class="p">,</span>
-    <span class="n">relative_defocus_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_relative_defocus.mrc&quot;</span><span class="p">,</span>
-    <span class="n">pixel_size_path</span><span class="o">=</span><span class="s2">&quot;/path/to/output_pixel_size.mrc&quot;</span><span class="p">,</span>
-<span class="p">)</span>
+    <span class="c1"># Orientation sampling of SO(3) space, using default</span>
+    <span class="n">orientation_search_config</span> <span class="o">=</span> <span class="n">OrientationSearchConfig</span><span class="p">()</span>
 
-<span class="c1"># Which GPUs to run template matching on (here the first 2 GPUs)</span>
-<span class="n">comp_config</span> <span class="o">=</span> <span class="n">ComputationalConfig</span><span class="p">(</span><span class="n">gpu_ids</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="c1"># Where to save the output results</span>
+    <span class="n">mt_result</span> <span class="o">=</span> <span class="n">MatchTemplateResult</span><span class="p">(</span>
+        <span class="n">allow_file_overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">mip_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_mip.mrc&quot;</span><span class="p">,</span>
+        <span class="n">scaled_mip_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_scaled_mip.mrc&quot;</span><span class="p">,</span>
+        <span class="n">correlation_average_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_correlation_average.mrc&quot;</span><span class="p">,</span>
+        <span class="n">correlation_variance_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_correlation_variance.mrc&quot;</span><span class="p">,</span>
+        <span class="n">orientation_psi_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_orientation_psi.mrc&quot;</span><span class="p">,</span>
+        <span class="n">orientation_theta_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_orientation_theta.mrc&quot;</span><span class="p">,</span>
+        <span class="n">orientation_phi_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_orientation_phi.mrc&quot;</span><span class="p">,</span>
+        <span class="n">relative_defocus_path</span><span class="o">=</span><span class="s2">&quot;some/path/to/output_relative_defocus.mrc&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
 
-<span class="n">mt_manager</span> <span class="o">=</span> <span class="n">MatchTemplateManager</span><span class="p">(</span>
-    <span class="n">micrograph_path</span><span class="o">=</span><span class="s2">&quot;/path/to/2D_image.mrc&quot;</span><span class="p">,</span>
-    <span class="n">template_volume_path</span><span class="o">=</span><span class="s2">&quot;/path/to/template_volume.mrc&quot;</span><span class="p">,</span>
-    <span class="n">optics_group</span><span class="o">=</span><span class="n">my_optics_group</span><span class="p">,</span>
-    <span class="n">defocus_search_config</span><span class="o">=</span><span class="n">df_search_config</span><span class="p">,</span>
-    <span class="n">orientation_search_config</span><span class="o">=</span><span class="n">orientation_search_config</span><span class="p">,</span>
-    <span class="n">match_template_result</span><span class="o">=</span><span class="n">mt_result</span><span class="p">,</span>
-    <span class="n">computational_config</span><span class="o">=</span><span class="n">comp_config</span><span class="p">,</span>
-    <span class="c1"># pixel_size_search_config</span>
-    <span class="c1"># preprocessing_filters</span>
-<span class="p">)</span>
+    <span class="c1"># What Fourier pre-processing filters to apply to image/template</span>
+    <span class="c1"># This uses the default filter parameters which work in most cases</span>
+    <span class="n">pre_filters</span> <span class="o">=</span> <span class="n">PreprocessingFilters</span><span class="p">()</span>
+
+    <span class="c1"># Which GPUs to run template matching on (here the first 2 GPUs)</span>
+    <span class="n">comp_config</span> <span class="o">=</span> <span class="n">ComputationalConfig</span><span class="p">(</span><span class="n">gpu_ids</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># Bring all the other configs together in the manager</span>
+    <span class="n">mt_manager</span> <span class="o">=</span> <span class="n">MatchTemplateManager</span><span class="p">(</span>
+        <span class="n">micrograph_path</span><span class="o">=</span><span class="s2">&quot;some_path/to/image.mrc&quot;</span><span class="p">,</span>
+        <span class="n">template_volume_path</span><span class="o">=</span><span class="s2">&quot;some_path/to/volume.mrc&quot;</span><span class="p">,</span>
+        <span class="n">optics_group</span><span class="o">=</span><span class="n">my_optics_group</span><span class="p">,</span>
+        <span class="n">defocus_search_config</span><span class="o">=</span><span class="n">df_search_config</span><span class="p">,</span>
+        <span class="n">orientation_search_config</span><span class="o">=</span><span class="n">orientation_search_config</span><span class="p">,</span>
+        <span class="n">match_template_result</span><span class="o">=</span><span class="n">mt_result</span><span class="p">,</span>
+        <span class="n">computational_config</span><span class="o">=</span><span class="n">comp_config</span><span class="p">,</span>
+        <span class="n">preprocessing_filters</span><span class="o">=</span><span class="n">pre_filters</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">mt_manager</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-    <span class="c1"># Load and run the match template configuration</span>
-    <span class="n">mt_manager</span> <span class="o">=</span> <span class="n">MatchTemplateManager</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="n">YAML_CONFIG_PATH</span><span class="p">)</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run the match_template program.&quot;&quot;&quot;</span>
+    <span class="n">mt_manager</span> <span class="o">=</span> <span class="n">setup_match_template_manager</span><span class="p">()</span>
     <span class="n">mt_manager</span><span class="o">.</span><span class="n">run_match_template</span><span class="p">(</span>
-        <span class="n">orientation_batch_size</span><span class="o">=</span><span class="n">ORIENTATION_BATCH_SIZE</span><span class="p">,</span>
+        <span class="n">orientation_batch_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>  <span class="c1"># Change this based on GPU memory</span>
         <span class="n">do_result_export</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># Saves the statistics immediately upon completion</span>
     <span class="p">)</span>
 
     <span class="c1"># Construct and export the dataframe of picked peaks</span>
     <span class="n">df</span> <span class="o">=</span> <span class="n">mt_manager</span><span class="o">.</span><span class="n">results_to_dataframe</span><span class="p">()</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">DATAFRAME_OUTPUT_PATH</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;my_match_template_results.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
 <span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
     <span class="n">main</span><span class="p">()</span>
 </code></pre></div>
 <h2 id="documentation-and-examples">Documentation and Examples</h2>
-<p>Under construction</p>
+<p>See the left-hand menu for examples of using the Leopard-EM package and other package documentation.</p>
 <h2 id="theory">Theory</h2>
-<p>Under construction</p>
+<p>🚧 Under Construction 🚧</p>
 <h2 id="contributing">Contributing</h2>
 <p>We encourage contributions to this package from the broader cryo-EM/ET and structural biology communities.
 See <a href="contributing/">contributing</a> for guidelines.
