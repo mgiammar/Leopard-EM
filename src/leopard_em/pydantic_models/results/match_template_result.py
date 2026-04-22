@@ -434,6 +434,10 @@ class MatchTemplateResultHDF5(_MatchTemplateResultBase):
     ### I/O methods    ###
     ######################
 
+    def export_results(self) -> None:
+        """Write tensors and metadata to ``hdf5_path``.  Alias for ``to_hdf5``."""
+        self.to_hdf5()
+
     def to_hdf5(self) -> None:
         """Write tensors and scalar metadata to ``hdf5_path``.
 
