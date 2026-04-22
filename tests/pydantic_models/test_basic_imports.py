@@ -59,6 +59,8 @@ def test_results_import():
         from leopard_em.pydantic_models.results import (
             CorrelationTable,
             MatchTemplateResult,
+            MatchTemplateResultHDF5,
+            MatchTemplateResultMRC,
         )
     except ImportError as e:
         raise ImportError(
