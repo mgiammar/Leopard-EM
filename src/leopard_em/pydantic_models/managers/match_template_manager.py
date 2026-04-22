@@ -23,7 +23,10 @@ from leopard_em.pydantic_models.config import (
 from leopard_em.pydantic_models.custom_types import BaseModel2DTM, ExcludedTensor
 from leopard_em.pydantic_models.data_structures import OpticsGroup
 from leopard_em.pydantic_models.formats import MATCH_TEMPLATE_DF_COLUMN_ORDER
-from leopard_em.pydantic_models.results import MatchTemplateResult
+from leopard_em.pydantic_models.results import (
+    MatchTemplateResultHDF5,
+    MatchTemplateResultMRC,
+)
 from leopard_em.utils.ctf_utils import calculate_ctf_filter_stack
 from leopard_em.utils.data_io import load_mrc_image, load_mrc_volume
 from leopard_em.utils.image_processing import (
@@ -55,9 +58,10 @@ class MatchTemplateManager(BaseModel2DTM):
     preprocessing_filters : PreprocessingFilters
         Configurations for the preprocessing filters to apply during
         correlation.
-    match_template_result : MatchTemplateResult
-        Result of the match template program stored as an instance of the
-        `MatchTemplateResult` class.
+    match_template_result : MatchTemplateResultMRC | MatchTemplateResultHDF5
+        Result of the match template program.  Use ``MatchTemplateResultMRC``
+        to write individual MRC files or ``MatchTemplateResultHDF5`` to bundle
+        all tensors into a single HDF5 file.
     computational_config : ComputationalConfigMatch
         Parameters for controlling computational resources.
 
@@ -98,7 +102,7 @@ class MatchTemplateManager(BaseModel2DTM):
     defocus_search_config: DefocusSearchConfig
     orientation_search_config: OrientationSearchConfig | MultipleOrientationConfig
     preprocessing_filters: PreprocessingFilters
-    match_template_result: MatchTemplateResult
+    match_template_result: MatchTemplateResultMRC | MatchTemplateResultHDF5
     computational_config: ComputationalConfigMatch
 
     # Non-serialized large array-like attributes
@@ -453,19 +457,30 @@ class MatchTemplateManager(BaseModel2DTM):
         df["micrograph_path"] = self.micrograph_path
         df["template_path"] = self.template_volume_path
 
-        # Add paths to the output statistic files
-        df["mip_path"] = self.match_template_result.mip_path
-        df["scaled_mip_path"] = self.match_template_result.scaled_mip_path
-        df["psi_path"] = self.match_template_result.orientation_psi_path
-        df["theta_path"] = self.match_template_result.orientation_theta_path
-        df["phi_path"] = self.match_template_result.orientation_phi_path
-        df["defocus_path"] = self.match_template_result.relative_defocus_path
-        df["correlation_average_path"] = (
-            self.match_template_result.correlation_average_path
-        )
-        df["correlation_variance_path"] = (
-            self.match_template_result.correlation_variance_path
-        )
+        # Add paths to the output statistic files, branching on storage back-end
+        if isinstance(self.match_template_result, MatchTemplateResultMRC):
+            df["mip_path"] = self.match_template_result.mip_path
+            df["scaled_mip_path"] = self.match_template_result.scaled_mip_path
+            df["psi_path"] = self.match_template_result.orientation_psi_path
+            df["theta_path"] = self.match_template_result.orientation_theta_path
+            df["phi_path"] = self.match_template_result.orientation_phi_path
+            df["defocus_path"] = self.match_template_result.relative_defocus_path
+            df["correlation_average_path"] = (
+                self.match_template_result.correlation_average_path
+            )
+            df["correlation_variance_path"] = (
+                self.match_template_result.correlation_variance_path
+            )
+        else:
+            # HDF5: all tensors are in one file; individual MRC paths are not applicable
+            df["mip_path"] = self.match_template_result.hdf5_path
+            df["scaled_mip_path"] = self.match_template_result.hdf5_path
+            df["psi_path"] = self.match_template_result.hdf5_path
+            df["theta_path"] = self.match_template_result.hdf5_path
+            df["phi_path"] = self.match_template_result.hdf5_path
+            df["defocus_path"] = self.match_template_result.hdf5_path
+            df["correlation_average_path"] = self.match_template_result.hdf5_path
+            df["correlation_variance_path"] = self.match_template_result.hdf5_path
 
         # Add particle index
         df["particle_index"] = df.index
