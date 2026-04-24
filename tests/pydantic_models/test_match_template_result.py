@@ -90,7 +90,9 @@ def test_public_imports():
 def test_base_class_not_public():
     """The private base class is not exported from the public API."""
     with pytest.raises(ImportError):
-        pass
+        from leopard_em.pydantic_models.results import (
+            _MatchTemplateResultBase,  # noqa: F401
+        )
 
 
 def test_backward_compat_alias():
