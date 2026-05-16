@@ -25,15 +25,12 @@ from leopard_em.pydantic_models.data_structures import OpticsGroup
 from leopard_em.pydantic_models.formats import MATCH_TEMPLATE_DF_COLUMN_ORDER
 from leopard_em.pydantic_models.results import MatchTemplateResult
 from leopard_em.pydantic_models.results.correlation_table import CorrelationTable
-from leopard_em.pydantic_models.utils import (
-    calculate_ctf_filter_stack,
-    preprocess_image,
-    volume_to_rfft_fourier_slice,
-)
 from leopard_em.utils.ctf_utils import calculate_ctf_filter_stack
 from leopard_em.utils.data_io import load_mrc_image, load_mrc_volume
 from leopard_em.utils.image_processing import (
-
+    preprocess_image,
+    volume_to_rfft_fourier_slice,
+)
 
 
 # pylint: disable=no-self-argument
