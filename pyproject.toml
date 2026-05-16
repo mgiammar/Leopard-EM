@@ -55,6 +55,7 @@ dependencies = [
     "lmfit",
     "zenodo-get",
     "h5py",
+    "tensordict",
 ]
 
 [tool.hatch.metadata]
@@ -154,7 +155,10 @@ pretty = true
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:torch.jit._script",  # torch.jit.script_method deprecation
+]
 addopts = "-m 'not slow'"               # Skip slow tests on default
 markers = ["slow: marks test as slow"]
 
