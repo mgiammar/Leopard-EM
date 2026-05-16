@@ -166,6 +166,7 @@ def process_correlation_table(
 
     processed_table = {
         "threshold": threshold,
+        "global_idx": global_indices.numpy().tolist(),
         "pixel_size": pixel_values.numpy().tolist(),
         "defocus": defocus.numpy().tolist(),
         "phi": phi.numpy().tolist(),

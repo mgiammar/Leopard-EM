@@ -23,6 +23,7 @@ from leopard_em.pydantic_models.custom_types import BaseModel2DTM, ExcludedTenso
 from leopard_em.pydantic_models.data_structures import OpticsGroup
 from leopard_em.pydantic_models.formats import MATCH_TEMPLATE_DF_COLUMN_ORDER
 from leopard_em.pydantic_models.results import MatchTemplateResult
+from leopard_em.pydantic_models.results.correlation_table import CorrelationTable
 from leopard_em.pydantic_models.utils import (
     calculate_ctf_filter_stack,
     preprocess_image,
@@ -249,6 +250,8 @@ class MatchTemplateManager(BaseModel2DTM):
         # Populate the MatchTemplateResult via a private helper
         self._populate_match_template_result(
             results,
+            defocus_values=core_kwargs["defocus_values"],
+            euler_angles=core_kwargs["euler_angles"],
             do_result_export=do_result_export,
             do_valid_cropping=do_valid_cropping,
         )
@@ -322,6 +325,8 @@ class MatchTemplateManager(BaseModel2DTM):
         if torch.distributed.get_rank() == 0:
             self._populate_match_template_result(
                 results,
+                defocus_values=core_kwargs["defocus_values"],
+                euler_angles=core_kwargs["euler_angles"],
                 do_result_export=do_result_export,
                 do_valid_cropping=do_valid_cropping,
             )
@@ -329,6 +334,8 @@ class MatchTemplateManager(BaseModel2DTM):
     def _populate_match_template_result(
         self,
         results: dict[str, Any],
+        defocus_values: torch.Tensor,
+        euler_angles: torch.Tensor,
         do_result_export: bool = True,
         do_valid_cropping: bool = False,
     ) -> None:
@@ -350,8 +357,17 @@ class MatchTemplateManager(BaseModel2DTM):
         self.match_template_result.total_orientations = results["total_orientations"]
         self.match_template_result.total_defocus = results["total_defocus"]
 
-        # Store the correlation table for later analysis
-        self.match_template_result.correlation_table = results["correlation_table"]
+        # Build a typed CorrelationTable from the processed backend output, looking up
+        # per-detection mean/variance from the statistics tensors independently.
+        self.match_template_result.correlation_table = (
+            CorrelationTable.from_match_template_results(
+                processed_correlation_table=results["correlation_table"],
+                defocus_values=defocus_values,
+                euler_angles=euler_angles,
+                correlation_average=results["correlation_mean"],
+                correlation_variance_map=results["correlation_variance"],
+            )
+        )
 
         # Apply the valid cropping mode to the results
         # NOTE: zipFFT already applies valid cropping internally

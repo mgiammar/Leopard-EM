@@ -54,6 +54,7 @@ dependencies = [
     "ttsim3d>=v0.4.0",
     "lmfit",
     "zenodo-get",
+    "h5py",
 ]
 
 [tool.hatch.metadata]

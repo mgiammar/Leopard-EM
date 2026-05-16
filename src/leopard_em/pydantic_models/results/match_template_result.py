@@ -18,6 +18,7 @@ from leopard_em.analysis import (
     match_template_peaks_to_dict,
 )
 from leopard_em.pydantic_models.custom_types import BaseModel2DTM, ExcludedTensor
+from leopard_em.pydantic_models.results.correlation_table import CorrelationTable
 from leopard_em.utils.data_io import load_mrc_image, write_mrc_from_tensor
 
 
@@ -144,8 +145,9 @@ class MatchTemplateResult(BaseModel2DTM):
     orientation_theta_path: str
     orientation_phi_path: str
     relative_defocus_path: str
+    correlation_table_path: str | None = Field(default=None)
 
-    correlation_table: dict[str, list[int | float]] = Field(default=None, exclude=True)
+    correlation_table: CorrelationTable | None = Field(default=None, exclude=True)
 
     # Scalar (non-tensor) attributes
     total_projections: int = 0
@@ -337,3 +339,19 @@ class MatchTemplateResult(BaseModel2DTM):
                 mrc_header=None,
                 overwrite=self.allow_file_overwrite,
             )
+
+        self.export_correlation_table()
+
+    def export_correlation_table(self) -> None:
+        """Write the held CorrelationTable to ``self.correlation_table_path``."""
+        if self.correlation_table is None:
+            raise ValueError("No correlation_table to export.")
+        if self.correlation_table_path is None:
+            raise ValueError("No correlation_table_path specified to export to.")
+        self.correlation_table.to_hdf5(self.correlation_table_path)
+
+    def load_correlation_table_from_path(self) -> None:
+        """Load CorrelationTable from HDF5 file at ``self.correlation_table_path``."""
+        if self.correlation_table_path is None:
+            raise ValueError("No correlation_table_path specified to load from.")
+        self.correlation_table = CorrelationTable.from_hdf5(self.correlation_table_path)
