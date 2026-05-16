@@ -1,7 +1,6 @@
 """File containing Fourier-slice based cross-correlation functions for 2DTM."""
 
 import torch
-import zipfft
 from torch_fourier_slice import extract_central_slices_rfft_3d
 
 from leopard_em.backend.utils import (
@@ -9,15 +8,23 @@ from leopard_em.backend.utils import (
     normalize_template_projection_compiled,
 )
 
-# Determine which batch sizes are supported by zipFFT for powers of 2
-# pylint: disable=c-extension-no-member
-ZIPFFT_SUPPORTED_CONFIGS = zipfft.padded_rconv2d.get_supported_conv_configs()
-ZIPFFT_SUPPORTED_BATCH_SIZES = [
-    x[-2]
-    for x in ZIPFFT_SUPPORTED_CONFIGS
-    if (x[0] == 512 and x[1] == 512 and x[2] == 4096 and x[3] == 4096)
-]
-ZIPFFT_SUPPORTED_BATCH_SIZES.sort(reverse=True)  # largest to smallest‰
+# --- Import handling for zipfft library (which may not be installed) ------------------
+try:
+    import zipfft
+
+    # Determine which batch sizes are supported by zipFFT for powers of 2
+    # pylint: disable=c-extension-no-member
+    ZIPFFT_SUPPORTED_CONFIGS = zipfft.padded_rconv2d.get_supported_conv_configs()
+    ZIPFFT_SUPPORTED_BATCH_SIZES = [
+        x[-2]
+        for x in ZIPFFT_SUPPORTED_CONFIGS
+        if (x[0] == 512 and x[1] == 512 and x[2] == 4096 and x[3] == 4096)
+    ]
+    ZIPFFT_SUPPORTED_BATCH_SIZES.sort(reverse=True)  # largest to smallest
+except ImportError:
+    zipfft = None
+    ZIPFFT_SUPPORTED_BATCH_SIZES = []
+    ZIPFFT_SUPPORTED_CONFIGS = []
 
 
 # pylint: disable=too-many-locals,E1102
