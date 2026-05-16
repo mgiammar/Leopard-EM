@@ -29,7 +29,7 @@ from leopard_em.backend.cross_correlation import (
     do_batched_orientation_cross_correlate_zipfft,
     do_streamed_orientation_cross_correlate,
 )
-from leopard_em.pydantic_models.utils import get_cs_range
+from leopard_em.utils import get_cs_range
 
 IMAGE_SHAPE = (4096, 4096)
 TEMPLATE_SHAPE = (512, 512, 512)

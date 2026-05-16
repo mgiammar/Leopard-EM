@@ -162,6 +162,7 @@ def core_match_template(
     orientation_batch_size: int = 1,
     num_cuda_streams: int = 1,
     backend: str = "streamed",
+    mag_matrix: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor | dict | int]:
     """Core function for performing the whole-orientation search.
 
@@ -216,6 +217,9 @@ def core_match_template(
     backend : str, optional
         The backend to use for computation. Defaults to 'streamed'.
         Must be 'streamed' or 'batched'.
+    mag_matrix : torch.Tensor | None, optional
+        Anisotropic magnification matrix of shape (2, 2). If None,
+        no magnification transform is applied. Default is None.
 
     Returns
     -------
@@ -268,6 +272,9 @@ def core_match_template(
     defocus_values = defocus_values.cpu()
     pixel_values = pixel_values.cpu()
     euler_angles = euler_angles.cpu()
+    # Move mag_matrix to CPU if it's not None
+    if mag_matrix is not None:
+        mag_matrix = mag_matrix.cpu()
 
     ##############################################################
     ### Pre-multiply the whitening filter with the CTF filters ###
@@ -317,6 +324,7 @@ def core_match_template(
             "num_cuda_streams": num_cuda_streams,
             "backend": backend,
             "device": d,
+            "mag_matrix": mag_matrix,
         }
 
         kwargs_per_device.append(kwargs)
@@ -389,6 +397,7 @@ def _core_match_template_single_gpu(
     num_cuda_streams: int,
     backend: str,
     device: torch.device,
+    mag_matrix: torch.Tensor | None = None,
 ) -> tuple[
     torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, tensordict.TensorDict
 ]:
@@ -430,6 +439,9 @@ def _core_match_template_single_gpu(
         Defaults to 'streamed'. Must be 'streamed' or 'batched'.
     device : torch.device
         Device to run the computation on. All tensors must be allocated on this device.
+    mag_matrix : torch.Tensor | None, optional
+        Anisotropic magnification matrix of shape (2, 2). If None,
+        no magnification transform is applied. Default is None.
 
     Returns
     -------
@@ -465,6 +477,9 @@ def _core_match_template_single_gpu(
     template_dft = template_dft.to(device)
     euler_angles = euler_angles.to(device)
     projective_filters = projective_filters.to(device)
+    # Move mag_matrix to device if it's not None
+    if mag_matrix is not None:
+        mag_matrix = mag_matrix.to(device)
 
     num_orientations = euler_angles.shape[0]
     num_defocus = defocus_values.shape[0]
@@ -571,6 +586,7 @@ def _core_match_template_single_gpu(
                         template_dft=template_dft,
                         rotation_matrices=rot_matrix,
                         projective_filters=projective_filters,
+                        mag_matrix=mag_matrix,
                     )
                 elif backend == "streamed":
                     cross_correlation = do_streamed_orientation_cross_correlate(
@@ -579,6 +595,7 @@ def _core_match_template_single_gpu(
                         rotation_matrices=rot_matrix,
                         projective_filters=projective_filters,
                         streams=streams,
+                        mag_matrix=mag_matrix,
                     )
                 elif backend == "zipfft":
                     cross_correlation = do_batched_orientation_cross_correlate_zipfft(
