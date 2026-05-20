@@ -78,7 +78,9 @@ def _generate_particle_ids(df: pd.DataFrame) -> list[str]:
         stem = Path(str(mic_path)).stem
         for local_idx, row_label in enumerate(group.index):
             ids.at[row_label] = f"{stem}_{local_idx:05d}"
-    return ids.tolist()
+
+    res: list[str] = ids.tolist()
+    return res
 
 
 # TODO: Better management of Zernikie coefficient columns/arrays in the HDF5 format...
@@ -126,7 +128,7 @@ def _write_df_to_hdf5_group(f: h5py.File, df: pd.DataFrame) -> None:
     # Build the list of columns to write, ensuring particle_id comes first.
     if df.index.name == "particle_id":
         particle_ids = df.index.tolist()
-        col_names = ["particle_id"] + list(df.columns)
+        col_names = ["particle_id", *list(df.columns)]
     else:
         # particle_id may be an ordinary column
         particle_ids = df["particle_id"].tolist() if "particle_id" in df.columns else []
@@ -495,7 +497,7 @@ class _ParticleStackBase(BaseModel2DTM):
     local_stats_correlation_average: ExcludedTensor
     local_stats_correlation_variance: ExcludedTensor
 
-    def __init__(self, skip_df_load: bool = False, **data: dict[str, Any]):
+    def __init__(self, skip_df_load: bool = False, **data: Any):
         """Initialize the particle stack.
 
         Parameters
@@ -1369,13 +1371,13 @@ class ParticleStackHDF5(_ParticleStackBase):
         │         global_whitening_applied, local_whitening_applied,
         │         global_normalization_applied, local_normalization_applied
         ├─ particles/
-        │      particle_id                (N,)   variable-length str  "{mic_stem}_{idx:05d}"
-        │      <column>                   (N,)   float64 or variable-length str
+        │      particle_id            (N,)   variable-length str  "{mic_stem}_{idx:05d}"
+        │      <column>               (N,)   float64 or variable-length str
         │      ...
-        ├─ image_stack                    (N, box_h, box_w)             float32  [optional]
-        └─ local_stats/                                                          [optional]
-               correlation_average        (N, valid_h, valid_w)         float32
-               correlation_variance       (N, valid_h, valid_w)         float32
+        ├─ image_stack                (N, box_h, box_w)             float32  [optional]
+        └─ local_stats/                                                      [optional]
+               correlation_average    (N, valid_h, valid_w)         float32
+               correlation_variance   (N, valid_h, valid_w)         float32
 
     where ``valid_h = extracted_box_size[0] - original_template_size[0] + 1``
     and   ``valid_w = extracted_box_size[1] - original_template_size[1] + 1``.
@@ -1596,8 +1598,8 @@ class ParticleStackHDF5(_ParticleStackBase):
         instance = cls(
             hdf5_path=str(path),
             allow_file_overwrite=allow_file_overwrite,
-            extracted_box_size=extracted_box_size,  # type: ignore[arg-type]
-            original_template_size=original_template_size,  # type: ignore[arg-type]
+            extracted_box_size=extracted_box_size,
+            original_template_size=original_template_size,
             leopard_em_version=leopard_em_version,
             global_whitening_applied=global_whitening_applied,
             local_whitening_applied=local_whitening_applied,

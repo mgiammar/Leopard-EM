@@ -125,17 +125,7 @@ class _MatchTemplateResultBase(BaseModel2DTM):
     # it will lead to headaches when attempting to load a result, this is set
     # to True, and the result files already exist.
     allow_file_overwrite: bool = False
-    mip_path: str
-    scaled_mip_path: str
-    correlation_average_path: str
-    correlation_variance_path: str
-    orientation_psi_path: str
-    orientation_theta_path: str
-    orientation_phi_path: str
-    relative_defocus_path: str
     correlation_table_path: str | None = Field(default=None)
-
-    correlation_table: CorrelationTable | None = Field(default=None, exclude=True)
 
     # Scalar (non-tensor) attributes
     leopard_em_version: str = Field(default_factory=_leopard_em_version)
@@ -144,6 +134,7 @@ class _MatchTemplateResultBase(BaseModel2DTM):
     total_defocus: int = 0
 
     match_template_peaks: MatchTemplatePeaks = Field(default=None, exclude=True)
+    correlation_table: CorrelationTable | None = Field(default=None, exclude=True)
 
     mip: ExcludedTensor
     scaled_mip: ExcludedTensor
