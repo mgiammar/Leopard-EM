@@ -1,0 +1,83 @@
+[project]
+site_name = "Leopard-EM: Two-Dimensional Template Matching in Python"
+
+# MathJax for LaTeX rendering in tutorials
+extra_javascript = [
+  "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=TeX-AMS-MML_HTMLorMML",
+]
+
+nav = [
+  { "Home" = "index.md" },
+  { "Tutorials" = [
+    { "2DTM Introduction"     = "tutorials/match_template_intro.md" },
+    { "Batch Processing"      = "tutorials/batch_processing.md" },
+    { "Distributed Computing" = "tutorials/distributed_match_template.md" },
+  ]},
+  { "Examples" = [
+    { "Match Template Config"           = "examples/01_basic_configuration.ipynb" },
+    { "Peaks to DataFrame"              = "examples/02_extract_peak_info.ipynb" },
+    { "Comparing Scoring Metrics"       = "examples/03_compare_scoring_metrics.ipynb" },
+    { "Plotting match template results" = "examples/04_plotting_2dtm_results.ipynb" },
+    { "Structure re-projection plot"    = "examples/05_structure_reprojection.ipynb" },
+  ]},
+  { "Programs" = [
+    { "Overview"                   = "programs/overview.md" },
+    { "Match Template details"     = "programs/match_template.md" },
+    { "Refine Template details"    = "programs/refine_template.md" },
+    { "Optimize Template details"  = "programs/optimize_template.md" },
+    { "Constrained Search details" = "programs/constrained_search.md" },
+  ]},
+  { "Program Output Formats" = "data_formats.md" },
+  { "Benchmarks"             = "benchmarks.md" },
+  { "Common Issues"          = "common_issues.md" },
+  { "Contributing"           = "contributing.md" },
+]
+
+# ----------------------------------------------------------------------------
+# Theme
+# ----------------------------------------------------------------------------
+
+[project.theme]
+# "classic" preserves the Material for MkDocs look; remove to use new Zensical design
+variant = "classic"
+features = [
+  "content.code.copy",
+]
+
+# ----------------------------------------------------------------------------
+# Plugins
+# NOTE: "search" is intentionally omitted — Zensical includes its Disco search
+# engine built-in. The inline-select-svg plugin may not yet be Zensical-
+# compatible; remove it if the build fails and it complains about unknown plugin.
+# ----------------------------------------------------------------------------
+
+[project.plugins.autorefs]
+
+[project.plugins."mkdocs-jupyter"]
+
+[project.plugins."inline-select-svg"]
+
+[project.plugins."mkdocs-autoapi"]
+autoapi_dir = "src"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "numpy"
+
+# ----------------------------------------------------------------------------
+# Markdown extensions
+# ----------------------------------------------------------------------------
+
+[project.markdown_extensions.admonition]
+
+[project.markdown_extensions.footnotes]
+
+[project.markdown_extensions.tables]
+
+[project.markdown_extensions.mdx_math]
+
+[project.markdown_extensions."pymdownx.details"]
+
+[project.markdown_extensions."pymdownx.superfences"]
