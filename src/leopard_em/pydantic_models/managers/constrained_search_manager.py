@@ -1,4 +1,3 @@
-# pylint: disable=duplicate-code
 """Pydantic model for running the constrained search program."""
 
 from typing import Any, ClassVar
@@ -20,11 +19,6 @@ from leopard_em.pydantic_models.config import (
 from leopard_em.pydantic_models.custom_types import BaseModel2DTM, ExcludedTensor
 from leopard_em.pydantic_models.data_structures import ParticleStack
 from leopard_em.pydantic_models.formats import CONSTRAINED_DF_COLUMN_ORDER
-from leopard_em.utils.backend_setup import (
-    _setup_correlation_stacks_from_micrographs,
-    setup_images_filters_particle_stack,
-)
-from leopard_em.utils.ctf_utils import _setup_ctf_kwargs_from_particle_stack
 from leopard_em.utils.data_io import load_mrc_volume, load_template_tensor
 
 
@@ -128,8 +122,8 @@ class ConstrainedSearchManager(BaseModel2DTM):
             particle_images_dft,
             template_dft,
             projective_filters,
-        ) = setup_images_filters_particle_stack(
-            part_stk, self.preprocessing_filters, template
+        ) = part_stk.prepare_images_and_filters(
+            template, self.preprocessing_filters, apply_global_filtering=True
         )
 
         # get z diff for each particle
@@ -154,9 +148,7 @@ class ConstrainedSearchManager(BaseModel2DTM):
         # The relative defocus values to search over
         defocus_offsets = self.defocus_refinement_config.defocus_values
 
-        ctf_kwargs = _setup_ctf_kwargs_from_particle_stack(
-            part_stk, (template.shape[-2], template.shape[-1])
-        )
+        ctf_kwargs = part_stk.get_ctf_kwargs((template.shape[-2], template.shape[-1]))
 
         # Ger corr mean and variance
         # The position of the extracted areas needs to be from the larger particle, but
@@ -178,13 +170,8 @@ class ConstrainedSearchManager(BaseModel2DTM):
         h, w = part_stk.original_template_size
         box_h, box_w = part_stk.extracted_box_size
         extracted_box_size = (box_h - h + 1, box_w - w + 1)
-        corr_mean_stack, corr_std_stack = _setup_correlation_stacks_from_micrographs(
-            particle_stack=part_stk,
-            mean_stack=None,
-            std_stack=None,
-            particle_indices=None,
-            extracted_box_size=extracted_box_size,
-            device=template.device,
+        corr_mean_stack, corr_std_stack = part_stk.get_correlation_stacks(
+            extracted_box_size, template.device
         )
 
         return {

@@ -1,6 +1,7 @@
 """Unit tests for MatchTemplateResultMRC and MatchTemplateResultHDF5."""
 
 import importlib.metadata
+import os
 
 import h5py
 import pytest
@@ -183,8 +184,6 @@ def test_hdf5_version_auto_populated(tmp_path):
 def test_to_hdf5_creates_file(hdf5_result):
     """to_hdf5 creates the file at hdf5_path."""
     hdf5_result.to_hdf5()
-    import os
-
     assert os.path.exists(hdf5_result.hdf5_path)
 
 
@@ -323,8 +322,6 @@ def test_from_hdf5_partial_tensors(tmp_path):
 
 def test_export_results_alias(hdf5_result):
     """export_results() on MatchTemplateResultHDF5 is equivalent to to_hdf5()."""
-    import os
-
     hdf5_result.export_results()
     assert os.path.exists(hdf5_result.hdf5_path)
     with h5py.File(hdf5_result.hdf5_path, "r") as f:

@@ -90,6 +90,54 @@ class RefineTemplateManager(BaseModel2DTM):
         if not skip_mrc_preloads:
             self.template_volume = load_mrc_volume(self.template_volume_path)
 
+    # TODO: Make this a dict return for clarity
+    def _prepare_search_tensors(
+        self,
+        prefer_refined_angles: bool = True,
+        template_tensor: torch.Tensor | None = None,
+        device: torch.device | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Load the template and assemble the five search tensors.
+
+        Parameters
+        ----------
+        prefer_refined_angles : bool
+            Whether to prefer refined Euler angles. Defaults to True.
+        template_tensor : torch.Tensor | None
+            Pre-loaded template.  If None, loaded from ``template_volume_path``.
+        device : torch.device | None
+            When provided, moves template and euler_angles to this device.
+
+        Returns
+        -------
+        tuple of (template, euler_angles, euler_angle_offsets,
+                  defocus_offsets, pixel_size_offsets)
+        """
+        if template_tensor is None:
+            template = load_template_tensor(
+                template_volume=self.template_volume,
+                template_volume_path=self.template_volume_path,
+            )
+        else:
+            template = template_tensor
+
+        euler_angles = self.particle_stack.get_euler_angles(prefer_refined_angles)
+        euler_angle_offsets = self.orientation_refinement_config.euler_angles_offsets
+        defocus_offsets = self.defocus_refinement_config.defocus_values
+        pixel_size_offsets = self.pixel_size_refinement_config.pixel_size_values
+
+        if device is not None:
+            template = template.to(device)
+            euler_angles = euler_angles.to(device)
+
+        return (
+            template,
+            euler_angles,
+            euler_angle_offsets,
+            defocus_offsets,
+            pixel_size_offsets,
+        )
+
     def make_backend_core_function_kwargs(
         self, prefer_refined_angles: bool = True
     ) -> dict[str, Any]:
@@ -101,24 +149,13 @@ class RefineTemplateManager(BaseModel2DTM):
             Whether to use the refined angles from the particle stack. Defaults to
             True.
         """
-        # Ensure the template is loaded in as a Tensor object
-        template = load_template_tensor(
-            template_volume=self.template_volume,
-            template_volume_path=self.template_volume_path,
-        )
-
-        # The set of "best" euler angles from match template search
-        # Check if refined angles exist, otherwise use the original angles
-        euler_angles = self.particle_stack.get_euler_angles(prefer_refined_angles)
-
-        # The relative Euler angle offsets to search over
-        euler_angle_offsets = self.orientation_refinement_config.euler_angles_offsets
-
-        # The relative defocus values to search over
-        defocus_offsets = self.defocus_refinement_config.defocus_values
-
-        # The relative pixel size values to search over
-        pixel_size_offsets = self.pixel_size_refinement_config.pixel_size_values
+        (
+            template,
+            euler_angles,
+            euler_angle_offsets,
+            defocus_offsets,
+            pixel_size_offsets,
+        ) = self._prepare_search_tensors(prefer_refined_angles)
 
         # Load movie, deformation field, and particle shifts
         movie = self.movie_config.movie
@@ -149,7 +186,6 @@ class RefineTemplateManager(BaseModel2DTM):
                     )
 
         # Use the common utility function to set up the backend kwargs
-        # pylint: disable=duplicate-code
         return setup_particle_backend_kwargs(
             particle_stack=self.particle_stack,
             template=template,
@@ -198,31 +234,19 @@ class RefineTemplateManager(BaseModel2DTM):
         images_are_particles : bool
             Whether the images are particles or not. Defaults to False.
         """
-        # Determine device from image_stack
         device = image_stack.device
-        # Ensure the template is loaded in as a Tensor object
-        if template_tensor is None:
-            template = load_template_tensor(
-                template_volume=self.template_volume,
-                template_volume_path=self.template_volume_path,
-            ).to(device)
-        else:
-            template = template_tensor.to(device)
+        (
+            template,
+            euler_angles,
+            euler_angle_offsets,
+            defocus_offsets,
+            pixel_size_offsets,
+        ) = self._prepare_search_tensors(
+            prefer_refined_angles,
+            template_tensor=template_tensor,
+            device=device,
+        )
 
-        # The set of "best" euler angles from match template search
-        # Check if refined angles exist, otherwise use the original angles
-        euler_angles = self.particle_stack.get_euler_angles(prefer_refined_angles)
-        euler_angles = euler_angles.to(device)
-
-        # The relative Euler angle offsets to search over
-        euler_angle_offsets = self.orientation_refinement_config.euler_angles_offsets
-        # The relative defocus values to search over
-        defocus_offsets = self.defocus_refinement_config.defocus_values
-        # The relative pixel size values to search over
-        pixel_size_offsets = self.pixel_size_refinement_config.pixel_size_values
-
-        # Use the common utility function to set up the backend kwargs
-        # pylint: disable=duplicate-code
         return setup_particle_backend_kwargs(
             particle_stack=self.particle_stack,
             template=template,
@@ -352,7 +376,6 @@ class RefineTemplateManager(BaseModel2DTM):
         result = {k: v.cpu().numpy() for k, v in result.items()}
         return result
 
-    # pylint: disable=too-many-locals
     def refine_result_to_dataframe(
         self,
         output_dataframe_path: str,
@@ -369,106 +392,16 @@ class RefineTemplateManager(BaseModel2DTM):
             The result of the refine template program. Can contain either
             np.ndarray (regular refine) or torch.Tensor (differentiable refine).
         prefer_refined_angles : bool
-            Whether to use the refined angles or not. Defaults to True.
+            Whether to prefer refined position columns when they exist.
+            Defaults to True.
         """
-        # pylint: disable=duplicate-code
-        df_refined = self.particle_stack._df.copy()  # pylint: disable=protected-access
-
-        # Convert torch.Tensor to numpy if needed
-        result_dict: dict[str, np.ndarray] = {}
-        for k, v in result.items():
-            if isinstance(v, torch.Tensor):
-                result_dict[k] = v.cpu().detach().numpy()
-            else:
-                result_dict[k] = v
-
-        # x and y positions
-        pos_offset_y = result_dict["refined_pos_y"]
-        pos_offset_x = result_dict["refined_pos_x"]
-        pos_offset_y_ang = pos_offset_y * df_refined["pixel_size"]
-        pos_offset_x_ang = pos_offset_x * df_refined["pixel_size"]
-
-        # pylint: disable=protected-access
-        if (
-            prefer_refined_angles
-            and self.particle_stack._get_position_reference_columns()
-            == ("refined_pos_y", "refined_pos_x")
-        ):
-            pos_y_col = "refined_pos_y"
-            pos_x_col = "refined_pos_x"
-            pos_y_col_img = "refined_pos_y_img"
-            pos_x_col_img = "refined_pos_x_img"
-            pos_y_col_img_angstrom = "refined_pos_y_img_angstrom"
-            pos_x_col_img_angstrom = "refined_pos_x_img_angstrom"
-        else:
-            pos_y_col = "pos_y"
-            pos_x_col = "pos_x"
-            pos_y_col_img = "pos_y_img"
-            pos_x_col_img = "pos_x_img"
-            pos_y_col_img_angstrom = "pos_y_img_angstrom"
-            pos_x_col_img_angstrom = "pos_x_img_angstrom"
-
-        df_refined["refined_pos_y"] = pos_offset_y + df_refined[pos_y_col]
-        df_refined["refined_pos_x"] = pos_offset_x + df_refined[pos_x_col]
-        df_refined["refined_pos_y_img"] = pos_offset_y + df_refined[pos_y_col_img]
-        df_refined["refined_pos_x_img"] = pos_offset_x + df_refined[pos_x_col_img]
-        df_refined["refined_pos_y_img_angstrom"] = (
-            pos_offset_y_ang + df_refined[pos_y_col_img_angstrom]
+        result_np: dict[str, np.ndarray] = {
+            k: v.cpu().detach().numpy() if isinstance(v, torch.Tensor) else v
+            for k, v in result.items()
+        }
+        df_refined = self.particle_stack.build_refined_dataframe(
+            result_np,
+            column_order=REFINED_DF_COLUMN_ORDER,
+            prefer_refined_positions=prefer_refined_angles,
         )
-        df_refined["refined_pos_x_img_angstrom"] = (
-            pos_offset_x_ang + df_refined[pos_x_col_img_angstrom]
-        )
-
-        # Euler angles
-        df_refined["refined_psi"] = result_dict["refined_euler_angles"][:, 2]
-        df_refined["refined_theta"] = result_dict["refined_euler_angles"][:, 1]
-        df_refined["refined_phi"] = result_dict["refined_euler_angles"][:, 0]
-
-        # Defocus
-        df_refined["refined_relative_defocus"] = (
-            result_dict["refined_defocus_offset"]
-            + self.particle_stack.get_relative_defocus().cpu().numpy()
-        )
-
-        # Pixel size
-        df_refined["refined_pixel_size"] = (
-            result_dict["refined_pixel_size_offset"]
-            + self.particle_stack.get_pixel_size().cpu().numpy()
-        )
-
-        # Cross-correlation statistics
-        # Check if correlation statistic files exist and use them if available
-        # This allows for shifts during refinement
-
-        # if (
-        #    "correlation_average_path" in df_refined.columns
-        #    and "correlation_variance_path" in df_refined.columns
-        # ):
-        # Check if files exist for at least the first entry
-        #    if (
-        #        df_refined["correlation_average_path"].iloc[0]
-        #        and df_refined["correlation_variance_path"].iloc[0]
-        #    ):
-        # Load the correlation statistics from the files
-        #        correlation_average = read_mrc_to_numpy(
-        #            df_refined["correlation_average_path"].iloc[0]
-        #        )
-        #        correlation_variance = read_mrc_to_numpy(
-        #            df_refined["correlation_variance_path"].iloc[0]
-        #        )
-        #        df_refined["correlation_mean"] = correlation_average[
-        #            df_refined["refined_pos_y"], df_refined["refined_pos_x"]
-        #           ]
-        #        df_refined["correlation_variance"] = correlation_variance[
-        #            df_refined["refined_pos_y"], df_refined["refined_pos_x"]
-        #        ]
-        refined_mip = result_dict["refined_cross_correlation"]
-        refined_scaled_mip = result_dict["refined_z_score"]
-        df_refined["refined_mip"] = refined_mip
-        df_refined["refined_scaled_mip"] = refined_scaled_mip
-
-        # Reorder the columns
-        df_refined = df_refined.reindex(columns=REFINED_DF_COLUMN_ORDER)
-
-        # Save the refined DataFrame to disk
         df_refined.to_csv(output_dataframe_path)

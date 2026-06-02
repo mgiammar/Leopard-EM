@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from leopard_em.pydantic_models.data_structures.particle_stack import ParticleStack
+from leopard_em.pydantic_models.formats import REFINED_DF_COLUMN_ORDER
 
 REQUIRED_COLUMNS = [
     "particle_index",
@@ -55,6 +56,18 @@ def make_minimal_df(num_rows=2):
     """Create a minimal DataFrame with required columns for testing."""
     data = {col: [0] * num_rows for col in REQUIRED_COLUMNS}
     return pd.DataFrame(data)
+
+
+def _make_ps_from_df(df, extracted_box_size=(34, 34), original_template_size=(32, 32)):
+    """Construct a ParticleStack with a pre-built DataFrame, bypassing CSV load."""
+    ps = ParticleStack(
+        df_path="",
+        extracted_box_size=extracted_box_size,
+        original_template_size=original_template_size,
+        skip_df_load=True,
+    )
+    ps._df = df
+    return ps
 
 
 def make_reference_example_df(
@@ -374,3 +387,95 @@ def test_particle_stack_top_left_and_center_self_consistency():
     assert np.allclose(extracted_mips_tl[1], mip2_tl)
     assert np.allclose(extracted_mips_center[0], mip1_center)
     assert np.allclose(extracted_mips_center[1], mip2_center)
+
+
+# ---------------------------------------------------------------------------
+# New public API tests
+# ---------------------------------------------------------------------------
+
+
+def test_get_position_reference_columns_without_refined():
+    """Returns (pos_y, pos_x) when no refined position columns exist."""
+    ps = _make_ps_from_df(make_minimal_df())
+    assert ps.get_position_reference_columns() == ("pos_y", "pos_x")
+
+
+def test_get_position_reference_columns_with_refined():
+    """Returns refined columns once they are present in the DataFrame."""
+    df = make_minimal_df()
+    df["refined_pos_y"] = 0.0
+    df["refined_pos_x"] = 0.0
+    ps = _make_ps_from_df(df)
+    assert ps.get_position_reference_columns() == ("refined_pos_y", "refined_pos_x")
+
+
+def test_build_refined_dataframe_structure():
+    """build_refined_dataframe produces the expected columns and arithmetic."""
+    num_particles = 3
+    df = make_minimal_df(num_rows=num_particles)
+    # Add image-position columns required by build_refined_dataframe
+    for col in ["pos_x_img", "pos_y_img", "pos_x_img_angstrom", "pos_y_img_angstrom"]:
+        df[col] = 0.0
+    df["pixel_size"] = 1.5
+
+    ps = _make_ps_from_df(df)
+
+    pos_y_offsets = np.array([2.0, 3.0, 4.0])
+    pos_x_offsets = np.array([5.0, 6.0, 7.0])
+    result = {
+        "refined_pos_y": pos_y_offsets,
+        "refined_pos_x": pos_x_offsets,
+        "refined_euler_angles": np.zeros((num_particles, 3)),
+        "refined_defocus_offset": np.zeros(num_particles),
+        "refined_pixel_size_offset": np.zeros(num_particles),
+        "refined_cross_correlation": np.ones(num_particles),
+        "refined_z_score": np.ones(num_particles) * 2.0,
+    }
+
+    df_out = ps.build_refined_dataframe(result, column_order=REFINED_DF_COLUMN_ORDER)
+
+    assert isinstance(df_out, pd.DataFrame)
+    np.testing.assert_array_equal(df_out["refined_pos_y"].values, pos_y_offsets)
+    np.testing.assert_array_equal(df_out["refined_pos_x"].values, pos_x_offsets)
+    # Angstrom offsets = pixel offset * pixel_size
+    np.testing.assert_allclose(
+        df_out["refined_pos_y_img_angstrom"].values, pos_y_offsets * 1.5
+    )
+    np.testing.assert_array_equal(df_out["refined_mip"].values, np.ones(num_particles))
+    np.testing.assert_array_equal(
+        df_out["refined_scaled_mip"].values, np.ones(num_particles) * 2.0
+    )
+
+
+def test_get_ctf_kwargs_keys():
+    """get_ctf_kwargs returns a dict with all expected keys."""
+    num_particles = 2
+    df = make_minimal_df(num_rows=num_particles)
+    # Zernike columns must be NaN (None) so _parse_json_series_value returns None
+    df["even_zernikes"] = float("nan")
+    df["odd_zernikes"] = float("nan")
+    df["mag_matrix"] = float("nan")
+    df["pixel_size"] = 1.0
+    df["voltage"] = 300.0
+
+    ps = _make_ps_from_df(df)
+    ctf_kwargs = ps.get_ctf_kwargs(template_shape=(64, 64))
+
+    expected_keys = {
+        "template_shape",
+        "even_zernikes",
+        "odd_zernikes",
+        "mag_matrix",
+        "voltage",
+        "spherical_aberration",
+        "amplitude_contrast_ratio",
+        "ctf_B_factor",
+        "phase_shift",
+        "pixel_size",
+    }
+    assert set(ctf_kwargs.keys()) == expected_keys
+    assert ctf_kwargs["template_shape"] == (64, 64)
+    assert ctf_kwargs["even_zernikes"] is None
+    assert ctf_kwargs["odd_zernikes"] is None
+    assert ctf_kwargs["mag_matrix"] is None
+    assert ctf_kwargs["voltage"] == pytest.approx(300.0)

@@ -440,7 +440,7 @@ class OptimizeTemplateManager(BaseModel2DTM):
         base, _ = os.path.splitext(output_text_path)
         return f"{base}_all.csv"
 
-    def refine_result_to_dataframe(  # pylint: disable=too-many-locals
+    def refine_result_to_dataframe(
         self,
         output_dataframe_path: str,
         result: dict[str, np.ndarray],
@@ -455,71 +455,12 @@ class OptimizeTemplateManager(BaseModel2DTM):
         result : dict[str, np.ndarray]
             The result of the refine template program.
         prefer_refined_angles : bool
-            Whether to use the refined angles or not. Defaults to True.
+            Whether to prefer refined position columns when they exist.
+            Defaults to True.
         """
-        # pylint: disable=duplicate-code
-        df_refined = self.particle_stack._df.copy()  # pylint: disable=protected-access
-
-        # x and y positions
-        pos_offset_y = result["refined_pos_y"]
-        pos_offset_x = result["refined_pos_x"]
-        pos_offset_y_ang = pos_offset_y * df_refined["pixel_size"]
-        pos_offset_x_ang = pos_offset_x * df_refined["pixel_size"]
-
-        if (
-            prefer_refined_angles
-            and self.particle_stack._get_position_reference_columns()  # pylint: disable=protected-access
-            == ("refined_pos_y", "refined_pos_x")
-        ):
-            pos_y_col = "refined_pos_y"
-            pos_x_col = "refined_pos_x"
-            pos_y_col_img = "refined_pos_y_img"
-            pos_x_col_img = "refined_pos_x_img"
-            pos_y_col_img_angstrom = "refined_pos_y_img_angstrom"
-            pos_x_col_img_angstrom = "refined_pos_x_img_angstrom"
-        else:
-            pos_y_col = "pos_y"
-            pos_x_col = "pos_x"
-            pos_y_col_img = "pos_y_img"
-            pos_x_col_img = "pos_x_img"
-            pos_y_col_img_angstrom = "pos_y_img_angstrom"
-            pos_x_col_img_angstrom = "pos_x_img_angstrom"
-
-        df_refined["refined_pos_y"] = pos_offset_y + df_refined[pos_y_col]
-        df_refined["refined_pos_x"] = pos_offset_x + df_refined[pos_x_col]
-        df_refined["refined_pos_y_img"] = pos_offset_y + df_refined[pos_y_col_img]
-        df_refined["refined_pos_x_img"] = pos_offset_x + df_refined[pos_x_col_img]
-        df_refined["refined_pos_y_img_angstrom"] = (
-            pos_offset_y_ang + df_refined[pos_y_col_img_angstrom]
+        df_refined = self.particle_stack.build_refined_dataframe(
+            result,
+            column_order=REFINED_DF_COLUMN_ORDER,
+            prefer_refined_positions=prefer_refined_angles,
         )
-        df_refined["refined_pos_x_img_angstrom"] = (
-            pos_offset_x_ang + df_refined[pos_x_col_img_angstrom]
-        )
-
-        # Euler angles
-        df_refined["refined_psi"] = result["refined_euler_angles"][:, 2]
-        df_refined["refined_theta"] = result["refined_euler_angles"][:, 1]
-        df_refined["refined_phi"] = result["refined_euler_angles"][:, 0]
-
-        # Defocus
-        df_refined["refined_relative_defocus"] = (
-            result["refined_defocus_offset"]
-            + self.particle_stack.get_relative_defocus().cpu().numpy()
-        )
-
-        # Pixel size
-        df_refined["refined_pixel_size"] = (
-            result["refined_pixel_size_offset"]
-            + self.particle_stack.get_pixel_size().cpu().numpy()
-        )
-
-        refined_mip = result["refined_cross_correlation"]
-        refined_scaled_mip = result["refined_z_score"]
-        df_refined["refined_mip"] = refined_mip
-        df_refined["refined_scaled_mip"] = refined_scaled_mip
-
-        # Reorder the columns
-        df_refined = df_refined.reindex(columns=REFINED_DF_COLUMN_ORDER)
-
-        # Save the refined DataFrame to disk
         df_refined.to_csv(output_dataframe_path)

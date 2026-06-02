@@ -1,6 +1,7 @@
 """CTF (Contrast Transfer Function) utility functions."""
 
 import json
+import warnings
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -80,6 +81,7 @@ def calculate_ctf_filter_stack_full_args(
 
         # Ensure mag_matrix is on the same device and has the correct dtype
         mag_matrix = mag_matrix.to(device=defocus.device, dtype=torch.float32)
+
     # Loop over spherical aberrations one at a time and collect results
     ctf_list = []
     for cs_val in cs_values:
@@ -202,97 +204,15 @@ def _parse_json_string_from_series_value(value: Any) -> dict | None:
 def _setup_ctf_kwargs_from_particle_stack(
     particle_stack: "ParticleStack", template_shape: tuple[int, int]
 ) -> dict[str, Any]:
-    """Helper function for per-particle CTF kwargs.
+    """Build CTF kwargs dict from a particle stack.
 
-    Parameters
-    ----------
-    particle_stack : ParticleStack
-        The particle stack to extract the CTF parameters from.
-    template_shape : tuple[int, int]
-        The shape of the template to use for the CTF calculation.
-
-    Returns
-    -------
-    dict[str, Any]
-        A dictionary of CTF parameters to pass to the CTF calculation function.
+    Delegates to ``particle_stack.get_ctf_kwargs``.
     """
-    # Keyword arguments for the CTF filter calculation call
-    # NOTE: We currently enforce the parameters (other than the defocus values) are
-    # all the same. This could be updated in the future...
-    assert particle_stack["voltage"].nunique() == 1
-    assert particle_stack["spherical_aberration"].nunique() == 1
-    assert particle_stack["amplitude_contrast_ratio"].nunique() == 1
-    assert particle_stack["phase_shift"].nunique() == 1
-    assert particle_stack["ctf_B_factor"].nunique() == 1
-    assert (
-        particle_stack["mag_matrix"].nunique() <= 1
-    ), "mag_matrix must be the same across all particles"
-    assert (
-        particle_stack["even_zernikes"].nunique() <= 1
-    ), "even_zernikes must be the same across all particles"
-    assert (
-        particle_stack["odd_zernikes"].nunique() <= 1
-    ), "odd_zernikes must be the same across all particles"
-
-    # Convert mag_matrix from list to 2x2 tensor if provided
-    # Handle empty/NaN values from CSV (pandas converts empty fields to NaN)
-    mag_matrix_value = particle_stack["mag_matrix"].iloc[0]
-    mag_matrix_tensor = None
-    if mag_matrix_value is not None and not (
-        isinstance(mag_matrix_value, float) and np.isnan(mag_matrix_value)
-    ):
-        # mag_matrix_value might be a list or a string representation of a list
-        if isinstance(mag_matrix_value, str):
-            mag_matrix_list = [
-                float(x) for x in mag_matrix_value.strip("[]").split(",")
-            ]
-            assert len(mag_matrix_list) == 4
-        else:
-            mag_matrix_list = mag_matrix_value
-        if isinstance(mag_matrix_list, list) and len(mag_matrix_list) == 4:
-            # Check that all elements are valid numbers (not NaN)
-            if all(
-                isinstance(x, (int, float)) and not np.isnan(x) for x in mag_matrix_list
-            ):
-                mag_matrix_tensor = torch.tensor(
-                    [
-                        [mag_matrix_list[0], mag_matrix_list[1]],
-                        [mag_matrix_list[2], mag_matrix_list[3]],
-                    ],
-                    dtype=torch.float32,
-                )
-
-    # Parse JSON strings for zernike coefficients if they're stored as strings
-    even_zernikes_dict = _parse_json_string_from_series_value(
-        particle_stack["even_zernikes"].iloc[0]
-    )
-    odd_zernikes_dict = _parse_json_string_from_series_value(
-        particle_stack["odd_zernikes"].iloc[0]
+    warnings.warn(
+        "_setup_ctf_kwargs_from_particle_stack is deprecated. "
+        "Please use particle_stack.get_ctf_kwargs(template_shape) directly instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
 
-    # Convert dictionary values to tensors
-    if even_zernikes_dict is not None:
-        even_zernikes_dict = {
-            key: torch.tensor(value, dtype=torch.float32)
-            for key, value in even_zernikes_dict.items()
-        }
-    if odd_zernikes_dict is not None:
-        odd_zernikes_dict = {
-            key: torch.tensor(value, dtype=torch.float32)
-            for key, value in odd_zernikes_dict.items()
-        }
-
-    return {
-        "voltage": particle_stack["voltage"][0].item(),
-        "spherical_aberration": particle_stack["spherical_aberration"][0].item(),
-        "amplitude_contrast_ratio": particle_stack["amplitude_contrast_ratio"][
-            0
-        ].item(),
-        "ctf_B_factor": particle_stack["ctf_B_factor"][0].item(),
-        "phase_shift": particle_stack["phase_shift"][0].item(),
-        "pixel_size": particle_stack["refined_pixel_size"].mean().item(),
-        "template_shape": template_shape,
-        "even_zernikes": even_zernikes_dict,
-        "odd_zernikes": odd_zernikes_dict,
-        "mag_matrix": mag_matrix_tensor,
-    }
+    return particle_stack.get_ctf_kwargs(template_shape)
