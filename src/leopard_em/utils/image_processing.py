@@ -20,7 +20,7 @@ def preprocess_image(
     full_image_shape: tuple[int, int],
     extracted_box_shape: tuple[int, int],
 ) -> torch.Tensor:
-    """Preprocesses and normalizes the image based on the given filters.
+    """Preprocess and normalize image FFTs with computed normalization factors.
 
     Parameters
     ----------
@@ -39,17 +39,53 @@ def preprocess_image(
     Returns
     -------
     torch.Tensor
-        Preprocessed and normalized image in Fourier space
+        Preprocessed and normalized image in Fourier space.
     """
+    normalization_factor = get_image_normalization_factor(
+        image_rfft=image_rfft,
+        cumulative_fourier_filters=cumulative_fourier_filters,
+        bandpass_filter=bandpass_filter,
+        full_image_shape=full_image_shape,
+        extracted_box_shape=extracted_box_shape,
+    )
     image_rfft = image_rfft * cumulative_fourier_filters
+    return image_rfft * normalization_factor
 
-    # Normalize the image after filtering
-    squared_image_rfft = torch.abs(image_rfft) ** 2
+
+def get_image_normalization_factor(
+    image_rfft: torch.Tensor,
+    cumulative_fourier_filters: torch.Tensor,
+    bandpass_filter: torch.Tensor,
+    full_image_shape: tuple[int, int],
+    extracted_box_shape: tuple[int, int],
+) -> torch.Tensor:
+    """Compute per-image normalization factors for filtered Fourier images.
+
+    Parameters
+    ----------
+    image_rfft : torch.Tensor
+        Real Fourier-transformed images (unshifted), typically ``(..., H, W_rfft)``.
+    cumulative_fourier_filters : torch.Tensor
+        Combined Fourier-domain filtering stack applied to each image.
+    bandpass_filter : torch.Tensor
+        Bandpass filter used to estimate effective Fourier dimensionality.
+    full_image_shape : tuple[int, int]
+        Shape ``(H_full, W_full)`` of the source image used for extraction.
+    extracted_box_shape : tuple[int, int]
+        Shape ``(H_box, W_box)`` of extracted particle boxes.
+
+    Returns
+    -------
+    torch.Tensor
+        Multiplicative normalization factor broadcastable to ``image_rfft``.
+    """
+    # Normalize image variance after filtering via Parseval-conjugate accounting.
+    filtered = image_rfft * cumulative_fourier_filters
+    squared_image_rfft = torch.abs(filtered) ** 2
     squared_sum = torch.sum(squared_image_rfft, dim=(-2, -1), keepdim=True)
     squared_sum += torch.sum(
         squared_image_rfft[..., :, 1:-1], dim=(-2, -1), keepdim=True
     )
-    image_rfft = image_rfft / torch.sqrt(squared_sum)  # Non-in-place preserves gradient
 
     # NOTE: For two Gaussian random variables in d-dimensional space --  A and B --
     # each with mean 0 and variance 1 their correlation will have on average a
@@ -64,15 +100,42 @@ def preprocess_image(
     # Below, we calculate the dimensionality of our cross-correlation and divide
     # by the square root of that number to normalize the image.
     dimensionality = bandpass_filter.sum() + bandpass_filter[:, 1:-1].sum()
-    image_rfft = image_rfft * dimensionality**0.5
+    normalization_factor = (dimensionality**0.5) / torch.sqrt(squared_sum)
 
     # NOTE: We need to rescale based on the relative area of the extracted box
     # to the full image.
     img_h, img_w = full_image_shape
     box_h, box_w = extracted_box_shape
-    image_rfft = image_rfft * ((img_h * img_w) / ((box_h) * (box_w))) ** 0.5
+    normalization_factor = normalization_factor * (
+        ((img_h * img_w) / ((box_h) * (box_w))) ** 0.5
+    )
+    return normalization_factor
 
-    return image_rfft
+
+def preprocess_frame(
+    frame_rfft: torch.Tensor,
+    cumulative_fourier_filters: torch.Tensor,
+    normalization_factor: torch.Tensor,
+) -> torch.Tensor:
+    """Apply fixed filtering and fixed normalization to frame FFTs.
+
+    Parameters
+    ----------
+    frame_rfft : torch.Tensor
+        Frame Fourier images in RFFT format.
+    cumulative_fourier_filters : torch.Tensor
+        Precomputed Fourier filters to apply to each frame image.
+    normalization_factor : torch.Tensor
+        Precomputed multiplicative normalization factor.
+
+    Returns
+    -------
+    torch.Tensor
+        Filtered and normalized frame Fourier images.
+    """
+    frame_rfft = frame_rfft * cumulative_fourier_filters
+    frame_rfft = frame_rfft * normalization_factor
+    return frame_rfft
 
 
 def apply_image_filtering(
@@ -81,9 +144,10 @@ def apply_image_filtering(
     images_dft: torch.Tensor,
     full_image_shape: tuple[int, int],
     extracted_box_shape: tuple[int, int],
+    precomputed_filter_stack: torch.Tensor | None = None,
+    precomputed_normalization_factor: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """
-    Apply filtering to a set of images.
+    """Apply filtering and normalization to a set of Fourier images.
 
     Parameters
     ----------
@@ -97,11 +161,17 @@ def apply_image_filtering(
         The shape of the full image.
     extracted_box_shape: tuple[int, int]
         The shape of the extracted box.
+    precomputed_filter_stack : torch.Tensor | None
+        Optional precomputed per-particle Fourier filter stack. If provided,
+        reuse these filters instead of recomputing from ``images_dft``.
+    precomputed_normalization_factor : torch.Tensor | None
+        Optional fixed per-particle normalization factors (old-style frame
+        normalization). If provided, apply these directly after filtering.
 
     Returns
     -------
     torch.Tensor
-        The filtered images in Fourier space
+        Filtered images in Fourier space.
     """
     device = images_dft.device
 
@@ -112,12 +182,21 @@ def apply_image_filtering(
                 images_dft.shape[-2:]
             ).to(device)
         )
-    filter_stack = particle_stack.construct_image_filters(
-        preprocessing_filters,
-        output_shape=images_dft.shape[-2:],
-        images_dft=images_dft.detach(),
-    ).to(device)
+    if precomputed_filter_stack is None:
+        filter_stack = particle_stack.construct_image_filters(
+            preprocessing_filters,
+            output_shape=images_dft.shape[-2:],
+            images_dft=images_dft.detach(),
+        ).to(device)
+    else:
+        filter_stack = precomputed_filter_stack.to(device)
 
+    if precomputed_normalization_factor is not None:
+        return preprocess_frame(
+            frame_rfft=images_dft,
+            cumulative_fourier_filters=filter_stack,
+            normalization_factor=precomputed_normalization_factor.to(device),
+        )
     return preprocess_image(
         image_rfft=images_dft,
         cumulative_fourier_filters=filter_stack,

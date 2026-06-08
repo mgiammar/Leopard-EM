@@ -1,10 +1,10 @@
 """Backend setup and orchestration utility functions."""
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 import torch
-from torch_cubic_spline_grids import CubicCatmullRomGrid3d
+from torch_motion_correction.deformation_field import DeformationField
 
 from leopard_em.utils.ctf_utils import _setup_ctf_kwargs_from_particle_stack
 from leopard_em.utils.image_processing import (
@@ -28,7 +28,11 @@ def _process_particle_images_for_filters(
     template: torch.Tensor,
     particle_images: torch.Tensor,
     apply_global_filtering: bool,
-    projective_filters: torch.Tensor | None,
+    fixed_image_filters: torch.Tensor | None,
+    fixed_projective_filters: torch.Tensor | None,
+    full_image_shape: tuple[int, int] | None = None,
+    extracted_box_shape: tuple[int, int] | None = None,
+    fixed_normalization_factor: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Process particle images and compute filters.
 
@@ -46,8 +50,21 @@ def _process_particle_images_for_filters(
         The particle images to process.
     apply_global_filtering : bool
         Whether global filtering was applied.
-    projective_filters : torch.Tensor | None
-        Pre-computed projective filters (if global filtering was used).
+    fixed_image_filters : torch.Tensor | None
+        Optional per-particle Fourier filters matching ``particle_images`` RFFT shape,
+        applied when whitening particle images (same convention as
+        ``construct_image_filters(..., output_shape=images_dft.shape[-2:])``).
+    fixed_projective_filters : torch.Tensor | None
+        Optional per-particle filters at template RFFT resolution for the correlation
+        backend (same convention as historical ``construct_image_filters`` /
+        ``construct_projective_filters`` template ``output_shape``).
+    full_image_shape : tuple[int, int] | None
+        Optional full image shape used for normalization scaling.
+    extracted_box_shape : tuple[int, int] | None
+        Optional extracted box shape used for normalization scaling.
+    fixed_normalization_factor : torch.Tensor | None
+        Optional precomputed per-particle normalization factors to reuse for
+        each frame (old-style frame normalization).
 
     Returns
     -------
@@ -55,38 +72,107 @@ def _process_particle_images_for_filters(
         A tuple containing:
         - particle_images_dft: The particle images in Fourier space
         - template_dft: The Fourier transformed template
-        - projective_filters: Filters applied to the template
+        - projective_filters: Filters applied to template projections (backend)
     """
     device = template.device
     box_h, box_w = particle_stack.extracted_box_size
+    filter_full_shape = full_image_shape or (box_h, box_w)
+    filter_extracted_shape = extracted_box_shape or (box_h, box_w)
 
     if not apply_global_filtering:
         particle_images_dft = torch.fft.rfftn(particle_images, dim=(-2, -1))  # pylint: disable=not-callable
         particle_images_dft[..., 0, 0] = 0.0 + 0.0j  # Zero out DC component
+        raw_particle_dft = particle_images_dft.detach()
 
-        # Compute filters without gradient tracking (filters are just preprocessing)
-        with torch.no_grad():
-            projective_filters = particle_stack.construct_image_filters(
-                preprocessing_filters,
-                output_shape=(template.shape[-2], template.shape[-1] // 2 + 1),
-                images_dft=particle_images_dft.detach(),
-            ).to(device)
+        image_filters = fixed_image_filters
+        if image_filters is None:
+            with torch.no_grad():
+                image_filters = particle_stack.construct_image_filters(
+                    preprocessing_filters,
+                    output_shape=particle_images_dft.shape[-2:],
+                    images_dft=raw_particle_dft,
+                ).to(device)
+
         particle_images_dft = apply_image_filtering(
             particle_stack,
             preprocessing_filters,
             particle_images_dft,
-            full_image_shape=(box_h, box_w),
-            extracted_box_shape=(box_h, box_w),
+            full_image_shape=filter_full_shape,
+            extracted_box_shape=filter_extracted_shape,
+            precomputed_filter_stack=image_filters,
+            precomputed_normalization_factor=fixed_normalization_factor,
         )
+
+        projective_filters = fixed_projective_filters
+        if projective_filters is None:
+            with torch.no_grad():
+                projective_filters = particle_stack.construct_image_filters(
+                    preprocessing_filters,
+                    output_shape=(template.shape[-2], template.shape[-1] // 2 + 1),
+                    images_dft=raw_particle_dft,
+                ).to(device)
     else:
         particle_images_dft = torch.fft.rfftn(particle_images, dim=(-2, -1))  # pylint: disable=not-callable
+        particle_images_dft[..., 0, 0] = 0.0 + 0.0j
+        if fixed_image_filters is not None and fixed_normalization_factor is not None:
+            particle_images_dft = apply_image_filtering(
+                particle_stack,
+                preprocessing_filters,
+                particle_images_dft,
+                full_image_shape=filter_full_shape,
+                extracted_box_shape=filter_extracted_shape,
+                precomputed_filter_stack=fixed_image_filters,
+                precomputed_normalization_factor=fixed_normalization_factor,
+            )
 
+        projective_filters = fixed_projective_filters
+        if projective_filters is None:
+            projective_filters = torch.ones(
+                (
+                    particle_images.shape[0],
+                    template.shape[-2],
+                    template.shape[-1] // 2 + 1,
+                ),
+                device=device,
+            )
     template_dft = volume_to_rfft_fourier_slice(template)
 
     return (
-        particle_images_dft,
+        cast(torch.Tensor, particle_images_dft),
         template_dft,
-        projective_filters,
+        cast(torch.Tensor, projective_filters),
+    )
+
+
+# pylint: disable=too-many-arguments
+def setup_frame_filters_particle_stack(
+    particle_stack: "ParticleStack",
+    preprocessing_filters: "PreprocessingFilters",
+    template: torch.Tensor,
+    particle_images: torch.Tensor,
+    apply_global_filtering: bool = False,
+    fixed_image_filters: torch.Tensor | None = None,
+    fixed_projective_filters: torch.Tensor | None = None,
+    fixed_normalization_factor: torch.Tensor | None = None,
+    full_image_shape: tuple[int, int] | None = None,
+    extracted_box_shape: tuple[int, int] | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Prepare backend image/template inputs for a per-frame particle stack.
+
+    The frame-correlation path already extracts particles for a single movie frame,
+    so this helper only handles particle-local filtering and template DFT setup.
+    """
+    return _process_particle_images_for_filters(
+        particle_stack=particle_stack,
+        preprocessing_filters=preprocessing_filters,
+        template=template,
+        particle_images=particle_images,
+        apply_global_filtering=apply_global_filtering,
+        fixed_image_filters=fixed_image_filters,
+        fixed_projective_filters=fixed_projective_filters,
+        full_image_shape=full_image_shape,
+        extracted_box_shape=extracted_box_shape,
+        fixed_normalization_factor=fixed_normalization_factor,
     )
 
 
@@ -99,7 +185,7 @@ def _setup_images_filters_from_micrographs(
     template: torch.Tensor,
     apply_global_filtering: bool,
     movie: torch.Tensor | None,
-    deformation_field: CubicCatmullRomGrid3d | None,
+    deformation_field: DeformationField | None,
     particle_shifts: torch.Tensor | None,
     pre_exposure: float,
     fluence_per_frame: float,
@@ -122,7 +208,7 @@ def _setup_images_filters_from_micrographs(
         If True, apply filtering to the full micrograph before particle extraction.
     movie: torch.Tensor | None
         The movie tensor.
-    deformation_field: CubicCatmullRomGrid3d | None
+    deformation_field: DeformationField | None
         The deformation field tensor.
     particle_shifts: torch.Tensor | None
         The particle shifts tensor. If provided, takes precedence over
@@ -224,7 +310,8 @@ def _setup_images_filters_from_micrographs(
         template=template,
         particle_images=particle_images,
         apply_global_filtering=apply_global_filtering,
-        projective_filters=projective_filters,
+        fixed_image_filters=None,
+        fixed_projective_filters=projective_filters,
     )
 
 
@@ -270,7 +357,8 @@ def _setup_images_filters_from_particles(
         template=template,
         particle_images=particle_images,
         apply_global_filtering=apply_global_filtering,
-        projective_filters=None,
+        fixed_image_filters=None,
+        fixed_projective_filters=None,
     )
 
 
@@ -282,7 +370,7 @@ def setup_images_filters_particle_stack(
     template: torch.Tensor,
     apply_global_filtering: bool = True,
     movie: torch.Tensor | None = None,
-    deformation_field: CubicCatmullRomGrid3d | None = None,
+    deformation_field: DeformationField | None = None,
     particle_shifts: torch.Tensor | None = None,
     pre_exposure: float = 0.0,
     fluence_per_frame: float = 1.0,
@@ -309,7 +397,7 @@ def setup_images_filters_particle_stack(
         Default is True.
     movie: torch.Tensor | None
         The movie tensor.
-    deformation_field: CubicCatmullRomGrid3d | None
+    deformation_field: DeformationField | None
         The deformation field tensor.
     particle_shifts: torch.Tensor | None
         The particle shifts tensor. If provided, takes precedence over
@@ -505,7 +593,7 @@ def setup_particle_backend_kwargs(
     apply_global_filtering: bool,
     device_list: list,
     movie: torch.Tensor | None = None,
-    deformation_field: CubicCatmullRomGrid3d | None = None,
+    deformation_field: DeformationField | None = None,
     particle_shifts: torch.Tensor | None = None,
     pre_exposure: float = 0.0,
     fluence_per_frame: float = 1.0,
@@ -543,7 +631,7 @@ def setup_particle_backend_kwargs(
         List of computational devices to use.
     movie: torch.Tensor | None
         The movie tensor.
-    deformation_field: CubicCatmullRomGrid3d | None
+    deformation_field: DeformationField | None
         The deformation field tensor.
     particle_shifts: torch.Tensor | None
         The particle shifts tensor. If provided, takes precedence over

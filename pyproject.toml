@@ -19,7 +19,7 @@ name = "leopard_em"
 dynamic = ["version"]
 description = "Location & Orientation of Particles found using Two-Dimensional Template Matching"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "BSD-3-Clause" }
 authors = [
     { name = "Matthew Giammar", email = "matthew_giammar@berkeley.edu" },
@@ -48,15 +48,17 @@ dependencies = [
     "types-PyYAML",
     "roma",
     "tqdm",
-    "torch-fourier-slice>=v0.4.0",
-    "torch-fourier-filter>=v0.3.4",
-    "torch-so3>=v0.2.0",
-    "ttsim3d>=v0.4.0",
     "lmfit",
     "zenodo-get",
-    "torch-fourier-shift",
-    "torch-motion-correction>=0.0.4",
-    "torch-grid-utils>=v0.0.9",
+    # TeamTomo dependencies
+    "torch-fourier-slice>=v0.5.2",
+    "torch-fourier-filter>=v0.5.2",
+    "torch-fourier-shell-correlation>=v0.5.2",
+    "torch-so3>=v0.5.2",
+    "ttsim3d>=v0.4.0",
+    "torch-fourier-shift>=v0.5.2",
+    "torch-motion-correction>=v0.5.2",
+    "torch-grid-utils>=v0.5.2",
     "torch-ctf",
 ]
 

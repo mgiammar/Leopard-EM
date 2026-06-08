@@ -1,6 +1,7 @@
 """File containing Fourier-slice based cross-correlation functions for 2DTM."""
 
 import torch
+from torch_fourier_shell_correlation import fsc
 from torch_fourier_slice import extract_central_slices_rfft_3d, transform_slice_2d
 
 from leopard_em.backend.utils import (
@@ -16,6 +17,7 @@ def do_streamed_orientation_cross_correlate(
     rotation_matrices: torch.Tensor,
     projective_filters: torch.Tensor,
     streams: list[torch.cuda.Stream],
+    apply_normalization: bool = True,
     mag_matrix: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Calculates a grid of 2D cross-correlations over multiple CUDA streams.
@@ -47,6 +49,8 @@ def do_streamed_orientation_cross_correlate(
     streams : list[torch.cuda.Stream]
         List of CUDA streams to use for parallel computation. Each stream will
         handle a separate cross-correlation.
+    apply_normalization : bool, optional
+        Whether to apply normalization to the template projections, by default True
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
@@ -115,10 +119,19 @@ def do_streamed_orientation_cross_correlate(
                     fourier_slice_filtered = fourier_slice * projective_filters[k, j]
                     projection = torch.fft.irfft2(fourier_slice_filtered)
                     projection = torch.fft.ifftshift(projection, dim=(-2, -1))
-                    projection = normalize_template_projection_compiled(
-                        projection,
-                        projection_shape_real,
-                        image_shape_real,
+
+                    if apply_normalization:
+                        projection = normalize_template_projection_compiled(
+                            projection,
+                            projection_shape_real,
+                            image_shape_real,
+                        )
+
+                    # NOTE: Decomposing 2D FFT into component 1D FFTs. Saves on first
+                    # pass where many lines are zeros. Approx 6-8% speedup.
+                    temp_fft = torch.fft.rfft(projection, n=image_shape_real[1], dim=-1)
+                    projection_dft = torch.fft.fft(
+                        temp_fft, n=image_shape_real[0], dim=-2
                     )
 
                     # NOTE: Decomposing 2D FFT into component 1D FFTs. Saves on first
@@ -160,6 +173,7 @@ def do_batched_orientation_cross_correlate(
     template_dft: torch.Tensor,
     rotation_matrices: torch.Tensor,
     projective_filters: torch.Tensor,
+    apply_normalization: bool = True,
     requires_grad: bool = False,
     mag_matrix: torch.Tensor | None = None,
 ) -> torch.Tensor:
@@ -188,6 +202,8 @@ def do_batched_orientation_cross_correlate(
     projective_filters : torch.Tensor
         Multiplied 'ctf_filters' with 'whitening_filter_template'. Has shape
         (num_Cs, num_defocus, h, w // 2 + 1). Is RFFT and not fftshifted.
+    apply_normalization : bool, optional
+        Whether to apply normalization to the template projections, by default True
     requires_grad : bool, optional
         Whether the input is requires_grad. Default is False.
         If True, the input will be cloned before any in-place operations.
@@ -250,11 +266,13 @@ def do_batched_orientation_cross_correlate(
     # Inverse Fourier transform into real space and normalize
     projections = torch.fft.irfftn(fourier_slice, dim=(-2, -1))
     projections = torch.fft.ifftshift(projections, dim=(-2, -1))
-    projections = normalize_template_projection_compiled(
-        projections,
-        projection_shape_real,
-        image_shape_real,
-    )
+
+    if apply_normalization:
+        projections = normalize_template_projection_compiled(
+            projections,
+            projection_shape_real,
+            image_shape_real,
+        )
 
     for j in range(num_defocus):
         for k in range(num_Cs):
@@ -289,6 +307,7 @@ def do_batched_orientation_cross_correlate_cpu(
     template_dft: torch.Tensor,
     rotation_matrices: torch.Tensor,
     projective_filters: torch.Tensor,
+    apply_normalization: bool = True,
     mag_matrix: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """Same as `do_streamed_orientation_cross_correlate` but on the CPU.
@@ -313,6 +332,8 @@ def do_batched_orientation_cross_correlate_cpu(
     projective_filters : torch.Tensor
         Multiplied 'ctf_filters' with 'whitening_filter_template'. Has shape
         (defocus_batch, h, w // 2 + 1). Is RFFT and not fftshifted.
+    apply_normalization : bool, optional
+        Whether to apply normalization to the template projections, by default True
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
@@ -352,11 +373,13 @@ def do_batched_orientation_cross_correlate_cpu(
     # Inverse Fourier transform into real space and normalize
     projections = torch.fft.irfftn(fourier_slice, dim=(-2, -1))
     projections = torch.fft.ifftshift(projections, dim=(-2, -1))
-    projections = normalize_template_projection(
-        projections,
-        projection_shape_real,
-        image_shape_real,
-    )
+
+    if apply_normalization:
+        projections = normalize_template_projection(
+            projections,
+            projection_shape_real,
+            image_shape_real,
+        )
 
     # Padded forward Fourier transform for cross-correlation
     projections_dft = torch.fft.rfftn(projections, dim=(-2, -1), s=image_shape_real)
@@ -367,3 +390,98 @@ def do_batched_orientation_cross_correlate_cpu(
     cross_correlation = torch.fft.irfftn(projections_dft, dim=(-2, -1))
 
     return cross_correlation
+
+
+# pylint: disable=too-many-locals,E1102
+def do_batched_orientation_frc(
+    image_dft: torch.Tensor,
+    template_dft: torch.Tensor,
+    rotation_matrices: torch.Tensor,
+    projective_filters: torch.Tensor,
+    apply_normalization: bool = True,
+    mag_matrix: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Batched projection and Fourier ring correlation with fixed filters.
+
+    Parameters
+    ----------
+    image_dft : torch.Tensor
+        Real-Fourier transform (RFFT) of the image with large-image filters applied.
+    template_dft : torch.Tensor
+        Real-Fourier transform (RFFT) of the template volume.
+    rotation_matrices : torch.Tensor
+        Rotation matrices for orientation offsets. Shape (num_orientations, 3, 3).
+    projective_filters : torch.Tensor
+        Filter stack with shape (num_Cs, num_defocus, h, w // 2 + 1).
+    apply_normalization : bool, optional
+        Whether to normalize real-space projections before FRC.
+    mag_matrix : torch.Tensor | None, optional
+        Optional anisotropic magnification matrix.
+
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor]
+        - frc_values: shape (num_Cs, num_defocus, num_orientations, num_freq_bins)
+        - frequency_bins: shape (num_freq_bins,)
+    """
+    projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
+    image_shape_real = (image_dft.shape[0], image_dft.shape[1] * 2 - 2)
+
+    num_orientations = rotation_matrices.shape[0]
+    num_cs = projective_filters.shape[0]
+    num_defocus = projective_filters.shape[1]
+
+    fourier_slice = extract_central_slices_rfft_3d(
+        volume_rfft=template_dft,
+        rotation_matrices=rotation_matrices,
+    )
+    if mag_matrix is not None:
+        rfft_shape = (template_dft.shape[1], template_dft.shape[2])
+        stack_shape = (num_orientations,)
+        fourier_slice = transform_slice_2d(
+            projection_image_dfts=fourier_slice,
+            rfft_shape=rfft_shape,
+            stack_shape=stack_shape,
+            transform_matrix=mag_matrix,
+        )
+    fourier_slice = torch.fft.ifftshift(fourier_slice, dim=(-2,))
+    fourier_slice[..., 0, 0] = 0 + 0j
+    fourier_slice *= -1
+
+    fourier_slice = fourier_slice[None, None, ...] * projective_filters[:, :, None, ...]
+
+    projections = torch.fft.irfftn(fourier_slice, dim=(-2, -1))
+    projections = torch.fft.ifftshift(projections, dim=(-2, -1))
+
+    if apply_normalization:
+        if image_dft.device.type == "cuda":
+            projections = normalize_template_projection_compiled(
+                projections,
+                projection_shape_real,
+                image_shape_real,
+            )
+        else:
+            projections = normalize_template_projection(
+                projections,
+                projection_shape_real,
+                image_shape_real,
+            )
+
+    image_real = torch.fft.irfftn(image_dft, dim=(-2, -1), s=image_shape_real).real
+    frequency_bins = torch.fft.rfftfreq(image_shape_real[-1], device=image_dft.device)
+    num_freq_bins = int(frequency_bins.shape[0])
+    frc_values = torch.empty(
+        (num_cs, num_defocus, num_orientations, num_freq_bins),
+        dtype=image_real.dtype,
+        device=image_dft.device,
+    )
+
+    for j in range(num_defocus):
+        for k in range(num_cs):
+            for i in range(num_orientations):
+                frc_values[k, j, i] = fsc(
+                    projections[k, j, i].real,
+                    image_real,
+                )
+
+    return frc_values, frequency_bins
