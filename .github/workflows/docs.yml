@@ -32,6 +32,9 @@ jobs:
       - name: Install docs dependencies
         run: pip install ".[docs]"
 
+      - name: Generate API stubs
+        run: python scripts/gen_api_docs.py
+
       - name: Build docs
         run: zensical build --clean
 

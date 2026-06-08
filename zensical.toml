@@ -30,6 +30,17 @@ nav = [
   { "Program Output Formats" = "data_formats.md" },
   { "Benchmarks"             = "benchmarks.md" },
   { "Common Issues"          = "common_issues.md" },
+  { "API Reference" = [
+    { "Overview"        = "api/index.md" },
+    { "Analysis"        = "api/analysis.md" },
+    { "Backend"         = "api/backend.md" },
+    { "Pydantic Models" = "api/pydantic_models.md" },
+    { "Config Models"   = "api/pydantic_models/config.md" },
+    { "Data Structures" = "api/pydantic_models/data_structures.md" },
+    { "Managers"        = "api/pydantic_models/managers.md" },
+    { "Results"         = "api/pydantic_models/results.md" },
+    { "Utilities"       = "api/utils.md" },
+  ]},
   { "Contributing"           = "contributing.md" },
 ]
 
@@ -38,11 +49,22 @@ nav = [
 # ----------------------------------------------------------------------------
 
 [project.theme]
-# "classic" preserves the Material for MkDocs look; remove to use new Zensical design
-variant = "classic"
 features = [
   "content.code.copy",
 ]
+
+[[project.theme.palette]]
+scheme = "slate"
+primary = "purple"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+scheme = "default"
+primary = "purple"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
 
 # ----------------------------------------------------------------------------
 # Plugins
@@ -57,14 +79,30 @@ features = [
 
 [project.plugins."inline-select-svg"]
 
-[project.plugins."mkdocs-autoapi"]
-autoapi_dir = "src"
+[project.plugins.mkdocstrings]
+default_handler = "python"
 
 [project.plugins.mkdocstrings.handlers.python]
 paths = ["src"]
 
 [project.plugins.mkdocstrings.handlers.python.options]
+show_source = false
+preload_modules = ["pydantic"]
+show_symbol_type_toc = true
+show_symbol_type_heading = true
+show_root_full_path = true
+show_root_heading = true
+group_by_category = true
+show_labels = false
+inherited_members = false
+members_order = "source"
+docstring_section_style = "list"
+merge_init_into_class = false
 docstring_style = "numpy"
+show_signature_annotations = true
+signature_crossrefs = false
+separate_signature = true
+line_length = 60
 
 # ----------------------------------------------------------------------------
 # Markdown extensions
