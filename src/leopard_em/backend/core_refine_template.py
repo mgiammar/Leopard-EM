@@ -654,15 +654,19 @@ def _iter_refine_particle_correlation_batches(
     defocus_angle: float,
     defocus_offsets: torch.Tensor,
     pixel_size_offsets: torch.Tensor,
-    corr_mean: torch.Tensor | None,
-    corr_std: torch.Tensor | None,
     ctf_kwargs: dict,
     projective_filter: torch.Tensor,
     batch_size: int = 32,
     mag_matrix: torch.Tensor | None = None,
     apply_projection_normalization: bool = True,
-) -> Iterator[tuple[int, torch.Tensor, torch.Tensor, torch.Tensor | None, int, int]]:
-    """Yield batched local correlations for one particle using refine semantics."""
+) -> Iterator[tuple[int, torch.Tensor, torch.Tensor, int, int]]:
+    """Yield batched local correlations for one particle using refine semantics.
+
+    Note
+    ----
+    Only correlations are computed here, z-score normalization must happen externally to
+    this function.
+    """
     img_h, img_w = particle_image_dft.shape
     _, template_h, template_w = template_dft.shape
     img_w = 2 * (img_w - 1)
@@ -724,24 +728,20 @@ def _iter_refine_particle_correlation_batches(
             )
 
         cross_correlation = cross_correlation[..., :crop_h, :crop_w]
-        z_score = None
-        if corr_mean is not None and corr_std is not None:
-            z_score = (cross_correlation - corr_mean) / corr_std
 
         yield (
             start_idx,
             euler_angle_offsets_batch,
             cross_correlation,
-            z_score,
             crop_h,
             crop_w,
         )
 
 
-def _reduce_refine_best(
-    correlation_batches: Iterator[
-        tuple[int, torch.Tensor, torch.Tensor, torch.Tensor | None, int, int]
-    ],
+def _reduce_refine_best_zscore(
+    correlation_batches: Iterator[tuple[int, torch.Tensor, torch.Tensor, int, int]],
+    corr_mean: torch.Tensor,
+    corr_std: torch.Tensor,
     defocus_offsets: torch.Tensor,
     pixel_size_offsets: torch.Tensor,
 ) -> dict[str, float | int]:
@@ -761,12 +761,10 @@ def _reduce_refine_best(
         start_idx,
         euler_angle_offsets_batch,
         cross_correlation,
-        z_score,
         crop_h,
         crop_w,
     ) in correlation_batches:
-        if z_score is None:
-            raise ValueError("corr_mean and corr_std are required for best reduction.")
+        z_score = (cross_correlation - corr_mean) / corr_std
 
         if z_score.max() > max_z_score:
             max_cc = cross_correlation.max()
@@ -876,16 +874,16 @@ def _core_refine_template_single_thread(
         defocus_angle=defocus_angle,
         defocus_offsets=defocus_offsets,
         pixel_size_offsets=pixel_size_offsets,
-        corr_mean=corr_mean,
-        corr_std=corr_std,
         ctf_kwargs=ctf_kwargs,
         projective_filter=projective_filter,
         batch_size=batch_size,
         mag_matrix=mag_matrix,
     )
 
-    return _reduce_refine_best(
+    return _reduce_refine_best_zscore(
         correlation_batches=correlation_batches,
+        corr_mean=corr_mean,
+        corr_std=corr_std,
         defocus_offsets=defocus_offsets,
         pixel_size_offsets=pixel_size_offsets,
     )
