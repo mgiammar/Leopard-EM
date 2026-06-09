@@ -405,8 +405,6 @@ def _core_inspect_template_single_thread(
         defocus_angle=defocus_angle,
         defocus_offsets=defocus_offsets,
         pixel_size_offsets=pixel_size_offsets,
-        corr_mean=corr_mean,
-        corr_std=corr_std,
         ctf_kwargs=ctf_kwargs,
         projective_filter=projective_filter,
         batch_size=batch_size,
@@ -574,16 +572,14 @@ def _reduce_refine_all_frc(
 
 
 def _reduce_refine_all(
-    correlation_batches: Iterator[
-        tuple[int, torch.Tensor, torch.Tensor, torch.Tensor | None, int, int]
-    ],
+    correlation_batches: Iterator[tuple[int, torch.Tensor, torch.Tensor, int, int]],
     num_orientations: int,
 ) -> torch.Tensor:
     """Stitch local CC batches into a full orientation tensor.
 
     Parameters
     ----------
-    correlation_batches : Iterator[tuple[int, torch.Tensor, torch.Tensor, ...]]
+    correlation_batches : Iterator[tuple[int, torch.Tensor, torch.Tensor, int, int]]
         Iterator from :func:`_iter_refine_particle_correlation_batches`.
     num_orientations : int
         Total number of orientation offsets across all batches.
@@ -598,7 +594,6 @@ def _reduce_refine_all(
         start_idx,
         angle_offsets_batch,
         cross_correlation,
-        _,
         crop_h,
         crop_w,
     ) in correlation_batches:
