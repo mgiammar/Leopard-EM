@@ -85,7 +85,6 @@ docs = [
     "mkdocs-jupyter",
     "mkdocs-inline-select-svg-plugin",
     "mkdocs-autorefs",
-    "mkdocs-autoapi",
     "mkdocstrings[python]",
 ]
 
