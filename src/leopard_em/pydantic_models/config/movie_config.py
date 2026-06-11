@@ -1,9 +1,7 @@
 """Serialization and validation of movie parameters for 2DTM."""
 
 import torch
-from torch_motion_correction.deformation_field import (  # pyright: ignore[reportMissingImports]
-    DeformationField,
-)
+from torch_motion_correction.deformation_field import DeformationField
 
 from leopard_em.pydantic_models.custom_types import BaseModel2DTM
 from leopard_em.utils.data_io import load_mrc_volume

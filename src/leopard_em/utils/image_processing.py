@@ -112,32 +112,6 @@ def get_image_normalization_factor(
     return normalization_factor
 
 
-def preprocess_frame(
-    frame_rfft: torch.Tensor,
-    cumulative_fourier_filters: torch.Tensor,
-    normalization_factor: torch.Tensor,
-) -> torch.Tensor:
-    """Apply fixed filtering and fixed normalization to frame FFTs.
-
-    Parameters
-    ----------
-    frame_rfft : torch.Tensor
-        Frame Fourier images in RFFT format.
-    cumulative_fourier_filters : torch.Tensor
-        Precomputed Fourier filters to apply to each frame image.
-    normalization_factor : torch.Tensor
-        Precomputed multiplicative normalization factor.
-
-    Returns
-    -------
-    torch.Tensor
-        Filtered and normalized frame Fourier images.
-    """
-    frame_rfft = frame_rfft * cumulative_fourier_filters
-    frame_rfft = frame_rfft * normalization_factor
-    return frame_rfft
-
-
 def apply_image_filtering(
     particle_stack: "ParticleStack",
     preprocessing_filters: "PreprocessingFilters",
@@ -192,11 +166,9 @@ def apply_image_filtering(
         filter_stack = precomputed_filter_stack.to(device)
 
     if precomputed_normalization_factor is not None:
-        return preprocess_frame(
-            frame_rfft=images_dft,
-            cumulative_fourier_filters=filter_stack,
-            normalization_factor=precomputed_normalization_factor.to(device),
-        )
+        # Apply the precomputed filters and fixed normalization factor directly.
+        return images_dft * filter_stack * precomputed_normalization_factor.to(device)
+
     return preprocess_image(
         image_rfft=images_dft,
         cumulative_fourier_filters=filter_stack,

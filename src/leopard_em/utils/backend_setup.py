@@ -1,6 +1,6 @@
 """Backend setup and orchestration utility functions."""
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import torch
@@ -138,9 +138,9 @@ def _process_particle_images_for_filters(
     template_dft = volume_to_rfft_fourier_slice(template)
 
     return (
-        cast(torch.Tensor, particle_images_dft),
+        particle_images_dft,
         template_dft,
-        cast(torch.Tensor, projective_filters),
+        projective_filters,
     )
 
 
@@ -579,6 +579,120 @@ def _setup_correlation_stacks_from_particles(
     return mean_stack, corr_std_stack
 
 
+def astigmatism_angle_tensor(
+    particle_stack: "ParticleStack",
+    device: torch.device,
+) -> torch.Tensor:
+    """Return the per-particle astigmatism angle as a tensor on ``device``."""
+    return torch.tensor(particle_stack["astigmatism_angle"], device=device)
+
+
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-arguments
+# pylint: disable=too-many-positional-arguments
+def setup_static_particle_kwargs(
+    particle_stack: "ParticleStack",
+    template: torch.Tensor,
+    euler_angles: torch.Tensor,
+    euler_angle_offsets: torch.Tensor,
+    defocus_offsets: torch.Tensor,
+    pixel_size_offsets: torch.Tensor,
+    device_list: list,
+    mean_stack: torch.Tensor | None = None,
+    std_stack: torch.Tensor | None = None,
+    particle_indices: list[pd.Index] | None = None,
+    images_are_particles: bool = False,
+) -> dict[str, Any]:
+    """Build the image-independent half of the backend kwargs.
+
+    These are the per-particle inputs that do not depend on per-image filtering:
+    Euler angles/offsets, defocus values, correlation mean/std stacks, CTF kwargs,
+    and the magnification matrix. They are shared by the standard particle path
+    (:func:`setup_particle_backend_kwargs`) and the per-frame inspection path, which
+    recomputes image filters separately for each frame.
+
+    Parameters
+    ----------
+    particle_stack : ParticleStack
+        The particle stack containing images to process.
+    template : torch.Tensor
+        The 3D template volume (used for device and CTF output shape).
+    euler_angles : torch.Tensor
+        The set of Euler angles to use.
+    euler_angle_offsets : torch.Tensor
+        The relative Euler angle offsets to search over.
+    defocus_offsets : torch.Tensor
+        The relative defocus values to search over.
+    pixel_size_offsets : torch.Tensor
+        The relative pixel size values to search over.
+    device_list : list
+        List of computational devices to use.
+    mean_stack : torch.Tensor | None
+        The mean stack tensor.
+    std_stack : torch.Tensor | None
+        The std stack tensor.
+    particle_indices : list[pd.Index] | None
+        The particle indices to process.
+    images_are_particles : bool
+        Whether the images are particles or not. Defaults to False.
+
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary of the image-independent backend keyword arguments.
+    """
+    device = template.device
+    h, w = particle_stack.original_template_size
+    box_h, box_w = particle_stack.extracted_box_size
+    extracted_box_size = (box_h - h + 1, box_w - w + 1)
+
+    # Setup correlation stacks
+    if images_are_particles:
+        corr_mean_stack, corr_std_stack = _setup_correlation_stacks_from_particles(
+            mean_stack=mean_stack,
+            std_stack=std_stack,
+            particle_indices=particle_indices,
+        )
+    else:
+        corr_mean_stack, corr_std_stack = _setup_correlation_stacks_from_micrographs(
+            particle_stack=particle_stack,
+            mean_stack=mean_stack,
+            std_stack=std_stack,
+            particle_indices=particle_indices,
+            extracted_box_size=extracted_box_size,
+            device=device,
+        )
+
+    # The best defocus values for each particle (+ astigmatism)
+    defocus_u, defocus_v = particle_stack.get_absolute_defocus()
+    defocus_u = defocus_u.to(device)
+    defocus_v = defocus_v.to(device)
+    defocus_angle = astigmatism_angle_tensor(particle_stack, device)
+
+    ctf_kwargs = _setup_ctf_kwargs_from_particle_stack(
+        particle_stack, (template.shape[-2], template.shape[-1])
+    )
+
+    # Extract mag_matrix from particle stack and convert to 2x2 tensor.
+    # All particles should have the same mag_matrix value.
+    mag_matrix_tensor = ctf_kwargs["mag_matrix"]
+
+    return {
+        "euler_angles": euler_angles,
+        "euler_angle_offsets": euler_angle_offsets,
+        "defocus_u": defocus_u,
+        "defocus_v": defocus_v,
+        "defocus_angle": defocus_angle,
+        "defocus_offsets": defocus_offsets,
+        "pixel_size_offsets": pixel_size_offsets,
+        "corr_mean": corr_mean_stack,
+        "corr_std": corr_std_stack,
+        "ctf_kwargs": ctf_kwargs,
+        "device": device_list,
+        "mag_matrix": mag_matrix_tensor,
+    }
+
+
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-arguments
 # pylint: disable=too-many-positional-arguments
@@ -656,27 +770,19 @@ def setup_particle_backend_kwargs(
     dict[str, Any]
         Dictionary of keyword arguments for backend functions.
     """
-    device = template.device
-    h, w = particle_stack.original_template_size
-    box_h, box_w = particle_stack.extracted_box_size
-    extracted_box_size = (box_h - h + 1, box_w - w + 1)
-
-    # Setup correlation stacks
-    if images_are_particles:
-        corr_mean_stack, corr_std_stack = _setup_correlation_stacks_from_particles(
-            mean_stack=mean_stack,
-            std_stack=std_stack,
-            particle_indices=particle_indices,
-        )
-    else:
-        corr_mean_stack, corr_std_stack = _setup_correlation_stacks_from_micrographs(
-            particle_stack=particle_stack,
-            mean_stack=mean_stack,
-            std_stack=std_stack,
-            particle_indices=particle_indices,
-            extracted_box_size=extracted_box_size,
-            device=device,
-        )
+    static_kwargs = setup_static_particle_kwargs(
+        particle_stack=particle_stack,
+        template=template,
+        euler_angles=euler_angles,
+        euler_angle_offsets=euler_angle_offsets,
+        defocus_offsets=defocus_offsets,
+        pixel_size_offsets=pixel_size_offsets,
+        device_list=device_list,
+        mean_stack=mean_stack,
+        std_stack=std_stack,
+        particle_indices=particle_indices,
+        images_are_particles=images_are_particles,
+    )
 
     (
         particle_images_dft,
@@ -697,34 +803,9 @@ def setup_particle_backend_kwargs(
         images_are_particles=images_are_particles,
     )
 
-    # The best defocus values for each particle (+ astigmatism)
-    defocus_u, defocus_v = particle_stack.get_absolute_defocus()
-    defocus_u = defocus_u.to(device)
-    defocus_v = defocus_v.to(device)
-    defocus_angle = torch.tensor(particle_stack["astigmatism_angle"], device=device)
-
-    ctf_kwargs = _setup_ctf_kwargs_from_particle_stack(
-        particle_stack, (template.shape[-2], template.shape[-1])
-    )
-
-    # Extract mag_matrix from particle stack and convert to 2x2 tensor
-    # All particles should have the same mag_matrix value
-    mag_matrix_tensor = ctf_kwargs["mag_matrix"]
-
     return {
+        **static_kwargs,
         "particle_stack_dft": particle_images_dft,
         "template_dft": template_dft,
-        "euler_angles": euler_angles,
-        "euler_angle_offsets": euler_angle_offsets,
-        "defocus_u": defocus_u,
-        "defocus_v": defocus_v,
-        "defocus_angle": defocus_angle,
-        "defocus_offsets": defocus_offsets,
-        "pixel_size_offsets": pixel_size_offsets,
-        "corr_mean": corr_mean_stack,
-        "corr_std": corr_std_stack,
-        "ctf_kwargs": ctf_kwargs,
         "projective_filters": projective_filters,
-        "device": device_list,
-        "mag_matrix": mag_matrix_tensor,
     }

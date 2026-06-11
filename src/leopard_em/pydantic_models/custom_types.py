@@ -37,7 +37,7 @@ class BaseModel2DTM(BaseModel):
         Serialize the BaseModel2DTM subclass to a YAML file.
     """
 
-    model_config: ClassVar = ConfigDict(extra="allow")
+    model_config: ClassVar = ConfigDict(extra="forbid")
 
     #####################################
     ### Import/instantiation methods ###
