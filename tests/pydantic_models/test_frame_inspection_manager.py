@@ -1,4 +1,5 @@
-import numpy as np
+"""Unit tests for the per-frame peak inspection manager."""
+
 import pandas as pd
 import pytest
 import torch
@@ -42,156 +43,154 @@ def make_frame_inspection_manager() -> FrameInspectionManager:
     )
 
 
-def test_run_peak_inspection_per_frame_requires_movie():
-    """Per-frame inspection should fail before doing template/backend work."""
-    manager = make_frame_inspection_manager()
+# ---------------------------------------------------------------------------
+# _reduce_cc_peak: pure static reduction of a cross-correlation tensor.
+# ---------------------------------------------------------------------------
 
+
+def test_reduce_cc_peak_single_frame():
+    """A single-frame CC tensor reduces to per-particle peak and XY coordinates."""
+    # (N=2, n_px=1, n_defocus=1, n_orient=1, H=2, W=2)
+    cc = torch.zeros((2, 1, 1, 1, 2, 2), dtype=torch.float32)
+    cc[0, 0, 0, 0, 1, 0] = 3.0  # particle 0 peak at (y=1, x=0)
+    cc[1, 0, 0, 0, 0, 1] = 5.0  # particle 1 peak at (y=0, x=1)
+
+    mip, pos_x, pos_y = FrameInspectionManager._reduce_cc_peak(cc, n_batch_dims=1)
+
+    assert isinstance(mip, torch.Tensor)
+    assert mip.device.type == "cpu"
+    assert torch.equal(mip, torch.tensor([3.0, 5.0]))
+    assert torch.equal(pos_x, torch.tensor([0, 1]))
+    assert torch.equal(pos_y, torch.tensor([1, 0]))
+
+
+def test_reduce_cc_peak_stacked_frames_preserves_batch_dims():
+    """A stacked (T, N, ...) CC tensor reduces over both leading batch dims."""
+    # (T=2, N=2, n_px=1, n_defocus=1, n_orient=1, H=2, W=2)
+    cc = torch.zeros((2, 2, 1, 1, 1, 2, 2), dtype=torch.float32)
+    cc[0, 0, 0, 0, 0, 1, 0] = 3.0
+    cc[0, 1, 0, 0, 0, 0, 1] = 5.0
+    cc[1, 0, 0, 0, 0, 0, 0] = 7.0
+    cc[1, 1, 0, 0, 0, 1, 1] = 11.0
+
+    mip, pos_x, pos_y = FrameInspectionManager._reduce_cc_peak(cc, n_batch_dims=2)
+
+    assert isinstance(mip, torch.Tensor)
+    assert mip.shape == (2, 2)
+    assert mip.tolist() == [[3.0, 5.0], [7.0, 11.0]]
+    assert pos_y.tolist() == [[1, 0], [0, 1]]
+    assert pos_x.tolist() == [[0, 1], [0, 1]]
+
+
+def test_reduce_cc_peak_rejects_wrong_dimensionality():
+    """Reduction validates the expected ``n_batch_dims + 5`` tensor rank."""
+    cc = torch.zeros((2, 1, 1, 2, 2), dtype=torch.float32)  # 5 dims, expects 6
+    with pytest.raises(ValueError, match="Expected cross-correlation tensor"):
+        FrameInspectionManager._reduce_cc_peak(cc, n_batch_dims=1)
+
+
+# ---------------------------------------------------------------------------
+# _stack_frame_results: pure static stacking of per-frame backend outputs.
+# ---------------------------------------------------------------------------
+
+
+def test_stack_frame_results_cross_correlation():
+    """Cross-correlation results stack with frame as the leading axis, in order."""
+    frame_results = [
+        torch.full((2, 1, 1, 1, 2, 2), float(i), dtype=torch.float32) for i in range(3)
+    ]
+    stacked = FrameInspectionManager._stack_frame_results(
+        frame_results, output_mode="cross_correlation"
+    )
+    assert isinstance(stacked, torch.Tensor)
+    assert stacked.shape == (3, 2, 1, 1, 1, 2, 2)
+    assert torch.all(stacked[0] == 0)
+    assert torch.all(stacked[2] == 2)
+
+
+def test_stack_frame_results_frc_returns_tensor_and_shared_bins():
+    """FRC results stack the spectra and carry the frequency bins through once."""
+    freq_bins = torch.linspace(0.0, 0.5, 4)
+    frame_results = [
+        (torch.full((2, 1, 1, 1, 4), float(i)), freq_bins) for i in range(3)
+    ]
+    stacked, bins = FrameInspectionManager._stack_frame_results(
+        frame_results, output_mode="frc"
+    )
+    assert stacked.shape == (3, 2, 1, 1, 1, 4)
+    assert torch.equal(bins, freq_bins)
+
+
+def test_stack_frame_results_empty_raises():
+    """An empty result list is an error in either output mode."""
+    with pytest.raises(ValueError, match="No frame results"):
+        FrameInspectionManager._stack_frame_results([], output_mode="cross_correlation")
+
+
+# ---------------------------------------------------------------------------
+# _frame_dose_template: per-frame template selection / dose weighting.
+# ---------------------------------------------------------------------------
+
+
+def test_frame_dose_template_disabled_returns_same_template():
+    """With dose weighting off, the shared template is returned unchanged."""
+    manager = make_frame_inspection_manager()
+    template = torch.randn((4, 4, 4))
+    result = manager._frame_dose_template(
+        template, frame_idx=2, apply_template_dose_weighting=False
+    )
+    assert result is template
+
+
+def test_frame_dose_template_applies_distinct_dose_per_frame():
+    """Each frame's template is dose-weighted over its own exposure interval."""
+    manager = make_frame_inspection_manager()
+    manager.particle_stack._df = pd.DataFrame(
+        {
+            "particle_index": [0, 1],
+            "pixel_size": [1.0, 1.0],
+            "refined_pixel_size": [1.0, 1.0],
+        }
+    )
+    manager.movie_config = MovieConfig(
+        enabled=True,
+        movie_path="movie.mrc",
+        pre_exposure=0.0,
+        fluence_per_frame=10.0,
+    )
+
+    torch.manual_seed(0)
+    template = torch.randn((6, 6, 6))
+
+    frame0 = manager._frame_dose_template(
+        template, frame_idx=0, apply_template_dose_weighting=True
+    )
+    frame1 = manager._frame_dose_template(
+        template, frame_idx=1, apply_template_dose_weighting=True
+    )
+
+    # Dose weighting actually attenuates the template ...
+    assert not torch.allclose(frame0, template)
+    # ... and later frames (higher cumulative exposure) differ from earlier ones.
+    assert not torch.allclose(frame0, frame1)
+    assert frame0.shape == template.shape
+
+
+# ---------------------------------------------------------------------------
+# run_peak_inspection_per_frame: real input-validation guard (no backend).
+# ---------------------------------------------------------------------------
+
+
+def test_run_peak_inspection_per_frame_requires_movie():
+    """Per-frame inspection fails fast when the movie config is disabled."""
+    manager = make_frame_inspection_manager()
     with pytest.raises(ValueError, match="requires movie_config.enabled"):
         manager.run_peak_inspection_per_frame(template_tensor=torch.zeros((2, 2, 2)))
 
 
-def test_run_peak_inspection_per_frame_stacks_cross_correlation(monkeypatch):
-    """The public manager API should stack per-frame inspect outputs."""
-    manager = make_frame_inspection_manager()
-
-    def fake_load_and_setup(self):
-        return torch.zeros((3, 4, 4)), None, None
-
-    def fake_prepare_template(self, template_tensor=None):
-        return torch.zeros((2, 2, 2))
-
-    def fake_setup_independent(self, template, prefer_refined_angles=True):
-        return {"frame_independent": torch.tensor(1)}
-
-    def fake_construct_particle_movie_stack(self, **kwargs):
-        return torch.zeros((3, 2, 4, 4))
-
-    def fake_setup_frame_kwargs(self, frame_particle_stack, template):
-        return {"frame_shape": torch.tensor(frame_particle_stack.shape)}
-
-    call_count = {"value": 0}
-
-    def fake_get_peak_inspection_result(
-        self,
-        backend_kwargs,
-        correlation_batch_size=32,
-        apply_projection_normalization=True,
-        output_mode="cross_correlation",
-    ):
-        frame_idx = call_count["value"]
-        call_count["value"] += 1
-        return torch.full((2, 1, 1, 1, 2, 2), frame_idx, dtype=torch.float32)
-
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_load_and_setup_frame_inspection",
-        fake_load_and_setup,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_prepare_frame_template",
-        fake_prepare_template,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_setup_frame_independent_kwargs",
-        fake_setup_independent,
-    )
-    monkeypatch.setattr(
-        ParticleStack,
-        "construct_particle_movie_stack",
-        fake_construct_particle_movie_stack,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_setup_frame_kwargs",
-        fake_setup_frame_kwargs,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "get_peak_inspection_result",
-        fake_get_peak_inspection_result,
-    )
-
-    result = manager.run_peak_inspection_per_frame()
-
-    assert result.shape == (3, 2, 1, 1, 1, 2, 2)
-    assert torch.all(result[0] == 0)
-    assert torch.all(result[2] == 2)
-
-
-def test_run_peak_inspection_per_frame_applies_template_dose_weighting(monkeypatch):
-    """Dose-weighted template path should call per-frame dose filter helper."""
-    manager = make_frame_inspection_manager()
-
-    def fake_load_and_setup(self):
-        return torch.zeros((2, 4, 4)), None, None
-
-    def fake_prepare_template(self, template_tensor=None):
-        return torch.zeros((2, 2, 2))
-
-    def fake_setup_independent(self, template, prefer_refined_angles=True):
-        return {"frame_independent": torch.tensor(1)}
-
-    def fake_construct_particle_movie_stack(self, **kwargs):
-        return torch.zeros((2, 1, 4, 4))
-
-    def fake_setup_frame_kwargs(self, frame_particle_stack, template):
-        return {"template_sum": template.sum()}
-
-    dose_calls = {"count": 0}
-
-    def fake_apply_dose(self, template, frame_idx):
-        dose_calls["count"] += 1
-        return template + frame_idx
-
-    def fake_get_peak_inspection_result(
-        self,
-        backend_kwargs,
-        correlation_batch_size=32,
-        apply_projection_normalization=True,
-        output_mode="cross_correlation",
-    ):
-        return torch.zeros((1, 1, 1, 1, 2, 2))
-
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_load_and_setup_frame_inspection",
-        fake_load_and_setup,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_prepare_frame_template",
-        fake_prepare_template,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_setup_frame_independent_kwargs",
-        fake_setup_independent,
-    )
-    monkeypatch.setattr(
-        ParticleStack,
-        "construct_particle_movie_stack",
-        fake_construct_particle_movie_stack,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_setup_frame_kwargs",
-        fake_setup_frame_kwargs,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "_apply_template_dose_filter_for_frame",
-        fake_apply_dose,
-    )
-    monkeypatch.setattr(
-        FrameInspectionManager,
-        "get_peak_inspection_result",
-        fake_get_peak_inspection_result,
-    )
-
-    manager.run_peak_inspection_per_frame(apply_template_dose_weighting=True)
-    assert dose_calls["count"] == 2
+# ---------------------------------------------------------------------------
+# CSV output: real reduction + dataframe writing, no faked internals.
+# ---------------------------------------------------------------------------
 
 
 def test_process_frame_results_writes_refine_style_csvs(tmp_path):
@@ -235,10 +234,10 @@ def test_write_reduced_cross_correlation_csvs_includes_cc_of_sum(tmp_path):
     manager.particle_stack._df = pd.DataFrame({"particle_index": [0, 1]})
     manager.movie_config = MovieConfig(enabled=True, movie_path="movie.mrc")
 
-    refined_mips = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
-    pos_x = np.zeros((2, 2), dtype=np.float64)
-    pos_y = np.zeros((2, 2), dtype=np.float64)
-    cc_of_sum = np.array([42.0, 43.0], dtype=np.float64)
+    refined_mips = torch.tensor([[1.0, 2.0], [3.0, 4.0]], dtype=torch.float64)
+    pos_x = torch.zeros((2, 2), dtype=torch.float64)
+    pos_y = torch.zeros((2, 2), dtype=torch.float64)
+    cc_of_sum = torch.tensor([42.0, 43.0], dtype=torch.float64)
     output_csv = tmp_path / "results.csv"
 
     manager._write_reduced_cross_correlation_csvs(
