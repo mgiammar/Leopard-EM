@@ -3,20 +3,17 @@
 # pylint: disable=too-many-lines
 
 import warnings
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, cast
 
 import numpy as np
 import pandas as pd
 import torch
 from pydantic import ConfigDict
 from torch.utils.checkpoint import checkpoint
-from torch_cubic_spline_grids import CubicCatmullRomGrid3d
 from torch_fourier_shift import fourier_shift_dft_2d
 from torch_grid_utils import coordinate_grid
 from torch_motion_correction.correct_motion import get_pixel_shifts
-from torch_motion_correction.deformation_field_utils import (
-    evaluate_deformation_field_at_t,
-)
+from torch_motion_correction.deformation_field import DeformationField
 
 from leopard_em.pydantic_models.config import PreprocessingFilters
 from leopard_em.pydantic_models.custom_types import (
@@ -946,12 +943,12 @@ class ParticleStack(BaseModel2DTM):
             fftshifted=False,
         )
 
-        return shifted_fft
+        return cast(torch.Tensor, shifted_fft)
 
     def compute_frame_particle_shifts_from_deformation(
         self,
         movie_frame: torch.Tensor,
-        deformation_field: CubicCatmullRomGrid3d,
+        deformation_field: DeformationField,
         normalized_t_value: torch.Tensor,
         pixel_grid: torch.Tensor,
         pixel_spacing: float,
@@ -967,7 +964,7 @@ class ParticleStack(BaseModel2DTM):
         ----------
         movie_frame : torch.Tensor
             Single movie frame (H, W)
-        deformation_field : CubicCatmullRomGrid3d
+        deformation_field : DeformationField
             The deformation field grid.
         normalized_t_value : torch.Tensor
             The normalized time value for the frame.
@@ -989,9 +986,8 @@ class ParticleStack(BaseModel2DTM):
         torch.Tensor
             Shifts with shape (N, 2) as (dy, dx)
         """
-        frame_deformation_field = evaluate_deformation_field_at_t(
-            deformation_field=deformation_field,
-            t=normalized_t_value.item(),
+        frame_deformation_field = deformation_field.evaluate_at_t(
+            t=float(normalized_t_value.item()),
             grid_shape=(10 * gh, 10 * gw),
         )
 
@@ -1011,27 +1007,27 @@ class ParticleStack(BaseModel2DTM):
     # pylint: disable=too-many-positional-arguments
     # pylint: disable=too-many-statements
     # pylint: disable=too-many-branches
-    def construct_image_stack_from_movie(
+    def _construct_particle_movie_rfft_stack(
         self,
         movie: torch.Tensor,
-        deformation_field: CubicCatmullRomGrid3d | None = None,
+        deformation_field: DeformationField | None = None,
         particle_shifts: torch.Tensor | None = None,
         pos_reference: Literal["center", "top-left"] = "top-left",
         handle_bounds: Literal["pad", "error"] = "pad",
         padding_mode: Literal["constant", "reflect", "replicate"] = "constant",
         padding_value: float = 0.0,
-        pre_exposure: float = 0.0,
-        fluence_per_frame: float = 0.0,
         use_gradient_checkpointing: bool = True,
         particle_indices: list[int] | None = None,
-    ) -> torch.Tensor:
-        """Construct a stack of images from a movie file.
+        require_motion_source: bool = True,
+        normalized_t_values: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, list[Any]]:
+        """Construct per-particle movie frame DFTs after optional motion shifts.
 
         Parameters
         ----------
         movie : torch.Tensor
             The movie tensor.
-        deformation_field : CubicCatmullRomGrid3d | None, optional
+        deformation_field : DeformationField | None, optional
             The deformation field grid.
         particle_shifts : torch.Tensor | None, optional
             The particle shifts to apply to the movie. If None, the particle shifts
@@ -1056,10 +1052,6 @@ class ParticleStack(BaseModel2DTM):
         padding_value : float, optional
             The value to use for padding when `padding_mode` is "constant",
             by default 0.0.
-        pre_exposure : float, optional
-            The pre-exposure time in seconds, by default 0.0.
-        fluence_per_frame : float, optional
-            The dose per frame in electrons per pixel, by default 0.0.
         use_gradient_checkpointing : bool, optional
             Whether to use gradient checkpointing to save memory during frame
             processing. Checkpointing trades compute time for memory by not
@@ -1068,16 +1060,32 @@ class ParticleStack(BaseModel2DTM):
             Indices of particles to process from the dataframe. If None,
             processes all particles. Use this to batch particles for memory
             efficiency during gradient-based optimization. Defaults to None.
+        require_motion_source : bool, optional
+            If True, require either a deformation field or particle shifts. If False,
+            allow aligned movies with no motion source and use zero shifts.
+        normalized_t_values : torch.Tensor | None, optional
+            Optional normalized frame positions in ``[0, 1]`` with one value per
+            frame. If None, values are generated linearly across the movie length.
 
         Returns
         -------
-        torch.Tensor
-            The stack of images with shape (N, H, W) where N is the number of particles
-            and (H, W) is the extracted box size.
+        tuple[torch.Tensor, list[Any]]
+            The shifted movie DFTs with shape ``(N, T, H, W // 2 + 1)`` and the
+            dataframe indexes corresponding to the particle axis.
         """
-        if (deformation_field is None) == (particle_shifts is None):
+        if deformation_field is not None and particle_shifts is not None:
             raise ValueError(
-                "One of `deformation_field` or `particle_shifts` must be provided."
+                "Only one of `deformation_field` or `particle_shifts` can be provided."
+            )
+        if deformation_field is None and particle_shifts is None:
+            if require_motion_source:
+                raise ValueError(
+                    "One of `deformation_field` or `particle_shifts` must be provided."
+                )
+            warnings.warn(
+                "No deformation field or particle shifts were provided. Assuming the "
+                "movie is already aligned and extracting each frame without shifts.",
+                stacklevel=2,
             )
         pixel_sizes = self.get_pixel_size()
         # Determine which position columns to use (refined if available)
@@ -1090,7 +1098,14 @@ class ParticleStack(BaseModel2DTM):
             _, _, gh, gw = deformation_field.data.shape
         else:
             gh = gw = 0
-        normalized_t = torch.linspace(0, 1, steps=t, device=movie.device)
+        if normalized_t_values is None:
+            normalized_t = torch.linspace(0, 1, steps=t, device=movie.device)
+        else:
+            if normalized_t_values.numel() != t:
+                raise ValueError(
+                    "normalized_t_values must have one entry per movie frame."
+                )
+            normalized_t = normalized_t_values.to(device=movie.device).reshape(t)
         pixel_grid = coordinate_grid(
             image_shape=(img_h, img_w),
             device=movie.device,
@@ -1098,15 +1113,15 @@ class ParticleStack(BaseModel2DTM):
         # Find the indexes in the DataFrame that correspond to each unique image
         if particle_indices is not None:
             # Use provided subset of particles
-            paticle_indexes = [self._df.index[i] for i in particle_indices]
+            particle_indexes = [self._df.index[i] for i in particle_indices]
             num_particles_to_process = len(particle_indices)
         else:
             # Use all particles
-            paticle_indexes = self._df.index.tolist()
+            particle_indexes = self._df.index.tolist()
             num_particles_to_process = self.num_particles
 
-        pos_y = self._df.loc[paticle_indexes, y_col].to_numpy()
-        pos_x = self._df.loc[paticle_indexes, x_col].to_numpy()
+        pos_y = self._df.loc[particle_indexes, y_col].to_numpy().copy()
+        pos_x = self._df.loc[particle_indexes, x_col].to_numpy().copy()
         # If the position reference is "top-left", shift (x, y) by half the original
         # template width/height so reference is now in the center
         if pos_reference == "center":
@@ -1136,6 +1151,14 @@ class ParticleStack(BaseModel2DTM):
             # ------------------------------------------------------------
             if particle_shifts is not None:
                 frame_shifts = particle_shifts[frame_index]  # (N, 2)
+                if particle_indices is not None:
+                    frame_shifts = frame_shifts[particle_indices]
+            elif deformation_field is None:
+                frame_shifts = torch.zeros(
+                    (num_particles_to_process, 2),
+                    dtype=movie.dtype,
+                    device=movie.device,
+                )
             else:
                 frame_shifts = self.compute_frame_particle_shifts_from_deformation(
                     movie_frame=movie_frame,
@@ -1183,6 +1206,95 @@ class ParticleStack(BaseModel2DTM):
             # Clear cache periodically to help with memory
             if frame_index % 10 == 0 and frame_index > 0:
                 torch.cuda.empty_cache()
+        return aligned_particle_movies_rfft, particle_indexes
+
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
+    def construct_particle_movie_stack(
+        self,
+        movie: torch.Tensor,
+        deformation_field: DeformationField | None = None,
+        particle_shifts: torch.Tensor | None = None,
+        pos_reference: Literal["center", "top-left"] = "top-left",
+        handle_bounds: Literal["pad", "error"] = "pad",
+        padding_mode: Literal["constant", "reflect", "replicate"] = "constant",
+        padding_value: float = 0.0,
+        use_gradient_checkpointing: bool = True,
+        particle_indices: list[int] | None = None,
+        normalized_t_values: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Construct per-frame particle images from a movie without dose summing.
+
+        If neither ``deformation_field`` nor ``particle_shifts`` is provided, the
+        movie is assumed to already be aligned and frames are extracted directly.
+
+        Returns
+        -------
+        torch.Tensor
+            Real-space particle movie stack with shape ``(T, N, H, W)``.
+        """
+        particle_movie_rfft, _ = self._construct_particle_movie_rfft_stack(
+            movie=movie,
+            deformation_field=deformation_field,
+            particle_shifts=particle_shifts,
+            pos_reference=pos_reference,
+            handle_bounds=handle_bounds,
+            padding_mode=padding_mode,
+            padding_value=padding_value,
+            use_gradient_checkpointing=use_gradient_checkpointing,
+            particle_indices=particle_indices,
+            require_motion_source=False,
+            normalized_t_values=normalized_t_values,
+        )
+        particle_movie = torch.fft.irfftn(  # pylint: disable=not-callable
+            particle_movie_rfft,
+            s=self.extracted_box_size,
+            dim=(-2, -1),
+        )
+        return cast(torch.Tensor, particle_movie.permute(1, 0, 2, 3).contiguous())
+
+    # pylint: disable=too-many-arguments
+    # pylint: disable=too-many-positional-arguments
+    def construct_image_stack_from_movie(
+        self,
+        movie: torch.Tensor,
+        deformation_field: DeformationField | None = None,
+        particle_shifts: torch.Tensor | None = None,
+        pos_reference: Literal["center", "top-left"] = "top-left",
+        handle_bounds: Literal["pad", "error"] = "pad",
+        padding_mode: Literal["constant", "reflect", "replicate"] = "constant",
+        padding_value: float = 0.0,
+        pre_exposure: float = 0.0,
+        fluence_per_frame: float = 0.0,
+        use_gradient_checkpointing: bool = True,
+        particle_indices: list[int] | None = None,
+    ) -> torch.Tensor:
+        """Construct a dose-weighted particle image stack from a movie file.
+
+        Returns
+        -------
+        torch.Tensor
+            The stack of images with shape (N, H, W) where N is the number of
+            particles and (H, W) is the extracted box size.
+        """
+        pixel_sizes = self.get_pixel_size()
+        box_h, box_w = self.extracted_box_size
+        aligned_particle_movies_rfft, particle_indexes = (
+            self._construct_particle_movie_rfft_stack(
+                movie=movie,
+                deformation_field=deformation_field,
+                particle_shifts=particle_shifts,
+                pos_reference=pos_reference,
+                handle_bounds=handle_bounds,
+                padding_mode=padding_mode,
+                padding_value=padding_value,
+                use_gradient_checkpointing=use_gradient_checkpointing,
+                particle_indices=particle_indices,
+                require_motion_source=True,
+            )
+        )
+        num_particles_to_process = aligned_particle_movies_rfft.shape[0]
+
         # Dose weight the aligned particle images
         aligned_particle_images = torch.zeros(
             (num_particles_to_process, box_h, box_w),
@@ -1192,12 +1304,12 @@ class ParticleStack(BaseModel2DTM):
             particle_dft = aligned_particle_movies_rfft[particle_index]
 
             # Get the actual dataframe index for this particle
-            df_idx = paticle_indexes[particle_index]
+            df_idx = particle_indexes[particle_index]
             df_loc = self._df.index.get_loc(df_idx)
 
             dw_sum = dose_weight_movie_to_micrograph(
                 movie_fft=particle_dft,
-                pixel_size=pixel_sizes[df_loc],
+                pixel_size=float(pixel_sizes[df_loc].item()),
                 pre_exposure=pre_exposure,
                 fluence_per_frame=fluence_per_frame,
                 voltage=self._df["voltage"].to_numpy()[df_loc],

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from pydantic import ConfigDict
-from torch_cubic_spline_grids import CubicCatmullRomGrid3d
+from torch_motion_correction.deformation_field import DeformationField
 
 from leopard_em.backend.core_differentiable_refine import core_differentiable_refine
 from leopard_em.backend.core_refine_template import core_refine_template
@@ -91,7 +91,9 @@ class RefineTemplateManager(BaseModel2DTM):
             self.template_volume = load_mrc_volume(self.template_volume_path)
 
     def make_backend_core_function_kwargs(
-        self, prefer_refined_angles: bool = True
+        self,
+        prefer_refined_angles: bool = True,
+        template_tensor: torch.Tensor | None = None,
     ) -> dict[str, Any]:
         """Create the kwargs for the backend refine_template core function.
 
@@ -100,12 +102,18 @@ class RefineTemplateManager(BaseModel2DTM):
         prefer_refined_angles : bool
             Whether to use the refined angles from the particle stack. Defaults to
             True.
+        template_tensor : torch.Tensor | None
+            Optional template volume override. If None, the configured template
+            volume/path is used.
         """
         # Ensure the template is loaded in as a Tensor object
-        template = load_template_tensor(
-            template_volume=self.template_volume,
-            template_volume_path=self.template_volume_path,
-        )
+        if template_tensor is None:
+            template = load_template_tensor(
+                template_volume=self.template_volume,
+                template_volume_path=self.template_volume_path,
+            )
+        else:
+            template = load_template_tensor(template_volume=template_tensor)
 
         # The set of "best" euler angles from match template search
         # Check if refined angles exist, otherwise use the original angles
@@ -144,8 +152,9 @@ class RefineTemplateManager(BaseModel2DTM):
                 # Use deformation field if particle shifts not provided
                 deformation_field_tensor = self.movie_config.deformation_field
                 if deformation_field_tensor is not None:
-                    deformation_field = CubicCatmullRomGrid3d.from_grid_data(
-                        deformation_field_tensor
+                    deformation_field = DeformationField(
+                        data=deformation_field_tensor,
+                        grid_type="catmull_rom",
                     )
 
         # Use the common utility function to set up the backend kwargs
