@@ -34,6 +34,14 @@ scores.shape = (N, n_px, n_def, n_orient, num_freq)
                |   +---------------------------- relative pixel-size search index
                +-------------------------------- particle (row in stack / CSV)
 ```
+
+Per-frame inspection
+--------------------
+
+The per-frame manager scores each movie frame independently, inserting a ``frame``
+axis immediately after ``particle`` (``per_frame=True``). The cross-correlation tensor
+is then 7-D ``(N, T, n_px, n_def, n_orient, H, W)`` and the FRC tensor is 6-D
+``(N, T, n_px, n_def, n_orient, num_freq)``, where ``T`` is the number of frames.
 """
 
 import json
@@ -66,6 +74,25 @@ FRC_AXES = (
     "frequency",
 )
 
+# Per-frame variants insert a ``frame`` axis right after ``particle``.
+CROSS_CORRELATION_FRAME_AXES = (
+    "particle",
+    "frame",
+    "pixel_size",
+    "defocus",
+    "orientation",
+    "y",
+    "x",
+)
+FRC_FRAME_AXES = (
+    "particle",
+    "frame",
+    "pixel_size",
+    "defocus",
+    "orientation",
+    "frequency",
+)
+
 
 @dataclass
 class InspectionResult:
@@ -89,15 +116,20 @@ class InspectionResult:
         ``defocus`` axis.
     pixel_size_offsets : np.ndarray
         Relative pixel-size offsets, shape ``(n_px,)``. Indexes the ``pixel_size`` axis.
-    base_euler_angles : np.ndarray | None
-        Per-particle base ZYZ angles the offsets are relative to, shape ``(N, 3)``, or
-        ``None`` if not stored.
+    base_euler_angles : np.ndarray
+        Per-particle base ZYZ angles the offsets are relative to, shape ``(N, 3)``.
+    base_defocus : np.ndarray
+        Per-particle base astigmatic defocus the ``defocus_offsets`` are relative to,
+        shape ``(N, 3)`` as ``(defocus_u, defocus_v, defocus_angle)``.
     particle_index : np.ndarray | None
         Global particle index for each row of the ``particle`` axis, shape ``(N,)``, or
         ``None`` if the source dataframe had no ``particle_index``
         column. Maps tensor rows back to the particle stack dataframe.
     frequency_bins : np.ndarray | None
         FRC frequency bins, shape ``(n_freq,)``, in FRC mode; ``None`` otherwise.
+    frame_index : np.ndarray | None
+        Movie frame index for each entry of the ``frame`` axis, shape ``(T,)``, when the
+        result was produced by per-frame inspection; ``None`` otherwise.
     metadata : dict[str, Any]
         Free-form metadata stored alongside the arrays (includes the format version and
         any caller-supplied ``extra_metadata``).
@@ -109,9 +141,11 @@ class InspectionResult:
     euler_angle_offsets: np.ndarray
     defocus_offsets: np.ndarray
     pixel_size_offsets: np.ndarray
-    base_euler_angles: np.ndarray | None
+    base_euler_angles: np.ndarray
+    base_defocus: np.ndarray
     particle_index: np.ndarray | None
     frequency_bins: np.ndarray | None
+    frame_index: np.ndarray | None
     metadata: dict[str, Any]
 
 
@@ -131,8 +165,11 @@ def save_inspection_result(
     euler_angle_offsets: torch.Tensor,
     defocus_offsets: torch.Tensor,
     pixel_size_offsets: torch.Tensor,
-    base_euler_angles: torch.Tensor | None = None,
+    base_euler_angles: torch.Tensor,
+    base_defocus: torch.Tensor,
     particle_index: torch.Tensor | np.ndarray | None = None,
+    frame_index: torch.Tensor | np.ndarray | None = None,
+    per_frame: bool = False,
     extra_metadata: dict[str, Any] | None = None,
 ) -> Path:
     """Write a peak-inspection result to a self-describing ``.npz`` file.
@@ -143,7 +180,8 @@ def save_inspection_result(
         Destination path. A ``.npz`` suffix is appended if not present.
     result : torch.Tensor | tuple[torch.Tensor, torch.Tensor]
         Output of the inspect backend. A tensor in ``"cross_correlation"`` mode, or
-        ``(frc_tensor, frequency_bins)`` in ``"frc"`` mode.
+        ``(frc_tensor, frequency_bins)`` in ``"frc"`` mode. When ``per_frame`` is True
+        the score tensor carries an extra ``frame`` axis after ``particle``.
     output_mode : Literal["cross_correlation", "frc"]
         Score mode used to produce ``result``.
     euler_angle_offsets : torch.Tensor
@@ -152,10 +190,19 @@ def save_inspection_result(
         Relative defocus offsets searched, shape ``(n_defocus,)``.
     pixel_size_offsets : torch.Tensor
         Relative pixel-size offsets searched, shape ``(n_px,)``.
-    base_euler_angles : torch.Tensor | None, optional
+    base_euler_angles : torch.Tensor
         Per-particle base ZYZ angles the offsets are relative to, shape ``(N, 3)``.
+    base_defocus : torch.Tensor
+        Per-particle base astigmatic defocus the offsets are relative to, shape
+        ``(N, 3)`` as ``(defocus_u, defocus_v, defocus_angle)``.
     particle_index : torch.Tensor | np.ndarray | None, optional
         Global particle index for each tensor row, shape ``(N,)``.
+    frame_index : torch.Tensor | np.ndarray | None, optional
+        Movie frame index for each entry of the ``frame`` axis, shape ``(T,)``. Only
+        meaningful when ``per_frame`` is True.
+    per_frame : bool, optional
+        If True, the score tensor carries a ``frame`` axis after ``particle`` and the
+        stored axis labels use the per-frame variants.
     extra_metadata : dict[str, Any] | None, optional
         Additional JSON-serializable metadata to store alongside the arrays.
 
@@ -177,13 +224,13 @@ def save_inspection_result(
                 "FRC mode expects a (frc_tensor, frequency_bins) tuple result."
             )
         scores_tensor, frequency_bins = result
-        axes = FRC_AXES
+        axes = FRC_FRAME_AXES if per_frame else FRC_AXES
     elif output_mode == "cross_correlation":
         if not isinstance(result, torch.Tensor):
             raise ValueError("Cross-correlation mode expects a single tensor result.")
         scores_tensor = result
         frequency_bins = None
-        axes = CROSS_CORRELATION_AXES
+        axes = CROSS_CORRELATION_FRAME_AXES if per_frame else CROSS_CORRELATION_AXES
     else:
         raise ValueError(f"Unknown output_mode: {output_mode!r}")
 
@@ -192,19 +239,22 @@ def save_inspection_result(
         "euler_angle_offsets": _to_numpy(euler_angle_offsets),
         "defocus_offsets": _to_numpy(defocus_offsets),
         "pixel_size_offsets": _to_numpy(pixel_size_offsets),
+        "base_euler_angles": _to_numpy(base_euler_angles),
+        "base_defocus": _to_numpy(base_defocus),
     }
 
     if frequency_bins is not None:
         arrays["frequency_bins"] = _to_numpy(frequency_bins)
-    if base_euler_angles is not None:
-        arrays["base_euler_angles"] = _to_numpy(base_euler_angles)
     if particle_index is not None:
         arrays["particle_index"] = _to_numpy(particle_index)
+    if per_frame and frame_index is not None:
+        arrays["frame_index"] = _to_numpy(frame_index)
 
     metadata: dict[str, Any] = {
         "format_version": INSPECTION_FORMAT_VERSION,
         "output_mode": output_mode,
         "axes": list(axes),
+        "per_frame": per_frame,
     }
 
     # Store metadata as a JSON string in a 0-d array so it survives the round trip.
@@ -240,14 +290,14 @@ def load_inspection_result(path: str | Path) -> InspectionResult:
             euler_angle_offsets=data["euler_angle_offsets"],
             defocus_offsets=data["defocus_offsets"],
             pixel_size_offsets=data["pixel_size_offsets"],
-            base_euler_angles=(
-                data["base_euler_angles"] if "base_euler_angles" in data else None
-            ),
+            base_euler_angles=data["base_euler_angles"],
+            base_defocus=data["base_defocus"],
             particle_index=(
                 data["particle_index"] if "particle_index" in data else None
             ),
             frequency_bins=(
                 data["frequency_bins"] if "frequency_bins" in data else None
             ),
+            frame_index=(data["frame_index"] if "frame_index" in data else None),
             metadata=metadata,
         )

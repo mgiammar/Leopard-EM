@@ -2,13 +2,11 @@
 
 # pylint: disable=duplicate-code
 
-import os
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
-import numpy as np
-import pandas as pd
 import torch
 import tqdm
 from torch_fourier_filter.dose_weight import cumulative_dose_filter_3d
@@ -17,6 +15,7 @@ from torch_motion_correction.deformation_field import (  # pyright: ignore[repor
     DeformationField,
 )
 
+from leopard_em.analysis.inspect_peaks_result import save_inspection_result
 from leopard_em.pydantic_models.managers.peak_inspection_manager import (
     PeakInspectionManager,
 )
@@ -325,48 +324,6 @@ class FrameInspectionManager(PeakInspectionManager):
             dim=(-3, -2, -1),
         )
 
-    def _peak_inspection_cc_on_summed_particle_stack(
-        self,
-        ctx: FrameInspectionContext,
-    ) -> torch.Tensor:
-        """Run one inspect pass on particle crops summed across frames.
-
-        Parameters
-        ----------
-        ctx : FrameInspectionContext
-            Shared inputs and settings for this inspection run.
-
-        Returns
-        -------
-        torch.Tensor
-            Peak cross-correlation per particle on the summed stack, shape ``(N,)``,
-            as a CPU tensor.
-        """
-        if ctx.output_mode != "cross_correlation":
-            raise ValueError(
-                "Summed-stack inspection is implemented for cross-correlation mode."
-            )
-        num_frames = ctx.movie.shape[0]
-        summed_stack = self._build_summed_particle_stack_from_movie(
-            movie=ctx.movie,
-            deformation_field=ctx.deformation_field,
-            particle_shifts=ctx.particle_shifts,
-        )
-        start_exposure = self.movie_config.pre_exposure
-        end_exposure = start_exposure + num_frames * self.movie_config.fluence_per_frame
-        summed_template = (
-            self._apply_template_dose_filter(ctx.template, start_exposure, end_exposure)
-            if ctx.apply_template_dose_weighting
-            else ctx.template
-        )
-        summed_result = self._inspect_particle_stack(
-            ctx, frame_particle_stack=summed_stack, template=summed_template
-        )
-        if not isinstance(summed_result, torch.Tensor):
-            raise TypeError("Expected tensor from peak inspection on summed stack.")
-        cc_mip, _, _ = self._reduce_cc_peak(summed_result, n_batch_dims=1)
-        return cc_mip
-
     def _setup_frame_kwargs(
         self,
         frame_particle_stack: torch.Tensor,
@@ -549,135 +506,6 @@ class FrameInspectionManager(PeakInspectionManager):
         )
 
     @staticmethod
-    def _reduce_cc_peak(
-        cc: torch.Tensor, n_batch_dims: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Reduce a cross-correlation tensor to peak score and XY peak coordinates.
-
-        Parameters
-        ----------
-        cc : torch.Tensor
-            Cross-correlation tensor ``(*batch, n_px, n_defocus, n_orient, H, W)``
-            with ``n_batch_dims`` leading batch dims (1 for a single frame ``(N, ...)``;
-            2 for a stacked ``(T, N, ...)`` tensor).
-        n_batch_dims : int
-            Number of leading batch dims to preserve.
-
-        Returns
-        -------
-        tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-            ``(mip, pos_x, pos_y)`` CPU tensors, each with shape equal to the leading
-            batch dims of ``cc``.
-        """
-        expected_ndim = n_batch_dims + 5
-        if cc.ndim != expected_ndim:
-            raise ValueError(
-                f"Expected cross-correlation tensor with {expected_ndim} dims "
-                f"({n_batch_dims} batch + n_px, n_defocus, n_orient, H, W); "
-                f"got {cc.ndim}."
-            )
-        h, w = cc.shape[-2], cc.shape[-1]
-        batch_shape = cc.shape[:n_batch_dims]
-        flattened = cc.reshape(*batch_shape, -1)
-        max_values, max_indices = torch.max(flattened, dim=-1)
-        spatial_size = h * w
-        local_spatial_index = max_indices % spatial_size
-        pos_y = torch.div(local_spatial_index, w, rounding_mode="floor")
-        pos_x = local_spatial_index % w
-        return (
-            max_values.cpu(),
-            pos_x.cpu(),
-            pos_y.cpu(),
-        )
-
-    def _write_reduced_cross_correlation_csvs(
-        self,
-        refined_mips: torch.Tensor,
-        pos_x: torch.Tensor,
-        pos_y: torch.Tensor,
-        output_dataframe_path: str,
-        cc_of_sum_mip: torch.Tensor | None = None,
-    ) -> None:
-        """Write frame and summed CSV outputs from reduced cross-correlation data.
-
-        Inputs are ``(N, T)`` CPU tensors; they are converted to NumPy here only
-        because that is the boundary where data is handed to pandas for CSV output.
-
-        Columns ``sum_frames_mip`` and optional ``cc_of_sum_mip`` compare Σ(frame
-        peak CC) to peak CC on the particle stack summed across frames with the same
-        preprocessing (fixed whitening filters / normalization).
-        """
-        refined_mips_np = refined_mips.cpu().numpy()
-        pos_x_np = pos_x.cpu().numpy()
-        pos_y_np = pos_y.cpu().numpy()
-        cc_of_sum_mip_np = (
-            cc_of_sum_mip.cpu().numpy() if cc_of_sum_mip is not None else None
-        )
-        num_frames = refined_mips_np.shape[1]
-        df_refined = self.particle_stack.get_dataframe_copy()
-        base_columns = {
-            "particle_index": df_refined["particle_index"],
-            "movie_path": self.movie_config.movie_path,
-        }
-        frames_df_mip = pd.DataFrame(base_columns)
-        frames_df_pos_x = pd.DataFrame(base_columns)
-        frames_df_pos_y = pd.DataFrame(base_columns)
-
-        for frame_idx in range(num_frames):
-            frames_df_mip[f"frame_{frame_idx}_mip"] = refined_mips_np[:, frame_idx]
-            frames_df_pos_x[f"frame_{frame_idx}_pos_x"] = pos_x_np[:, frame_idx]
-            frames_df_pos_y[f"frame_{frame_idx}_pos_y"] = pos_y_np[:, frame_idx]
-
-        frames_df_mip["sum_frames_mip"] = np.sum(refined_mips_np, axis=1)
-        if cc_of_sum_mip_np is not None:
-            frames_df_mip["cc_of_sum_mip"] = cc_of_sum_mip_np
-
-        base_path = os.path.splitext(output_dataframe_path)[0]
-        frames_df_mip.to_csv(f"{base_path}_frames_mip.csv", index=False)
-        frames_df_pos_x.to_csv(f"{base_path}_frames_pos_x.csv", index=False)
-        frames_df_pos_y.to_csv(f"{base_path}_frames_pos_y.csv", index=False)
-
-        df_refined["refined_mip"] = np.sum(refined_mips_np, axis=1)
-        if cc_of_sum_mip_np is not None:
-            df_refined["cc_of_sum_mip"] = cc_of_sum_mip_np
-        df_refined.to_csv(output_dataframe_path, index=False)
-
-    def process_frame_results(
-        self,
-        frame_results: torch.Tensor | tuple[torch.Tensor, torch.Tensor],
-        output_dataframe_path: str,
-        output_mode: Literal["cross_correlation", "frc"] = "cross_correlation",
-    ) -> None:
-        """Reduce frame outputs and write CSV summaries.
-
-        Parameters
-        ----------
-        frame_results : torch.Tensor | tuple[torch.Tensor, torch.Tensor]
-            Stacked frame results from :meth:`run_peak_inspection_per_frame`.
-            Cross-correlation mode expects a tensor.
-        output_dataframe_path : str
-            Path to the main reduced output CSV.
-        output_mode : Literal["cross_correlation", "frc"], optional
-            Output mode used to validate expected result format.
-        """
-        if output_mode != "cross_correlation":
-            raise ValueError(
-                "CSV processing is currently implemented for cross-correlation mode."
-            )
-        if not isinstance(frame_results, torch.Tensor):
-            raise TypeError("Expected tensor frame results in cross-correlation mode.")
-
-        # frame_results is (T, N, n_px, n_defocus, n_orient, H, W); reduce over the
-        # two leading (T, N) batch dims, then transpose to (N, T) for CSV columns.
-        mip_tn, pos_x_tn, pos_y_tn = self._reduce_cc_peak(frame_results, n_batch_dims=2)
-        self._write_reduced_cross_correlation_csvs(
-            refined_mips=mip_tn.transpose(0, 1),
-            pos_x=pos_x_tn.transpose(0, 1),
-            pos_y=pos_y_tn.transpose(0, 1),
-            output_dataframe_path=output_dataframe_path,
-        )
-
-    @staticmethod
     def _stack_frame_results(
         frame_results: list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]],
         output_mode: Literal["cross_correlation", "frc"],
@@ -826,78 +654,90 @@ class FrameInspectionManager(PeakInspectionManager):
                 ),
             )
 
-    def _run_per_frame_cross_correlation_csv(
+    def _build_inspection_context(
         self,
-        ctx: FrameInspectionContext,
-        output_dataframe_path: str,
-    ) -> None:
-        """Score every frame, reducing to peaks, and write CSV summaries.
+        correlation_batch_size: int,
+        prefer_refined_angles: bool,
+        apply_projection_normalization: bool,
+        template_tensor: torch.Tensor | None,
+        output_mode: Literal["cross_correlation", "frc"],
+        apply_template_dose_weighting: bool,
+    ) -> FrameInspectionContext:
+        """Load inputs and assemble the immutable per-frame inspection context.
 
-        Reduces each frame's cross-correlation to per-particle peaks as it is
-        produced (so full CC tensors are not all held in memory at once), then adds
-        the ``cc_of_sum_mip`` reference computed on the summed particle stack.
+        Loads the movie/motion inputs, prepares the shared template and fixed whitening
+        filters, and builds the frame-independent backend kwargs, bundling them into a
+        :class:`FrameInspectionContext`.
 
         Parameters
         ----------
-        ctx : FrameInspectionContext
-            Shared inputs and settings for this inspection run.
-        output_dataframe_path : str
-            Destination path for the reduced CSV outputs.
-        """
-        reduced_mips: list[torch.Tensor] = []
-        reduced_pos_x: list[torch.Tensor] = []
-        reduced_pos_y: list[torch.Tensor] = []
-        for _, frame_result in self._iter_frame_inspection_results(ctx):
-            if not isinstance(frame_result, torch.Tensor):
-                raise TypeError(
-                    "Expected tensor frame results in cross-correlation mode."
-                )
-            frame_mip, frame_x, frame_y = self._reduce_cc_peak(
-                frame_result, n_batch_dims=1
-            )
-            reduced_mips.append(frame_mip)
-            reduced_pos_x.append(frame_x)
-            reduced_pos_y.append(frame_y)
+        correlation_batch_size : int
+            Number of orientation offsets processed per backend batch.
+        prefer_refined_angles : bool
+            If True, use refined Euler angles from the particle stack when available.
+        apply_projection_normalization : bool
+            Whether to normalize each projection before scoring.
+        template_tensor : torch.Tensor | None
+            Optional template volume override.
+        output_mode : Literal["cross_correlation", "frc"]
+            Score mode (CC maps or FRC spectra).
+        apply_template_dose_weighting : bool
+            If True, apply cumulative dose filtering to the template per frame interval.
 
-        cc_of_sum_mip = self._peak_inspection_cc_on_summed_particle_stack(ctx)
-        self._write_reduced_cross_correlation_csvs(
-            refined_mips=torch.stack(reduced_mips, dim=1),
-            pos_x=torch.stack(reduced_pos_x, dim=1),
-            pos_y=torch.stack(reduced_pos_y, dim=1),
-            output_dataframe_path=output_dataframe_path,
-            cc_of_sum_mip=cc_of_sum_mip,
+        Returns
+        -------
+        FrameInspectionContext
+            Immutable inputs threaded through the per-frame inspection run.
+        """
+        movie, deformation_field, particle_shifts = (
+            self._load_and_setup_frame_inspection()
+        )
+        template = self._prepare_frame_template(template_tensor=template_tensor)
+        fixed_filters = self._setup_fixed_frame_normalization_filters(
+            movie=movie,
+            deformation_field=deformation_field,
+            particle_shifts=particle_shifts,
+            template=template,
+        )
+        frame_independent_kwargs = self._setup_frame_independent_kwargs(
+            template=template,
+            prefer_refined_angles=prefer_refined_angles,
+        )
+        return FrameInspectionContext(
+            movie=movie,
+            deformation_field=deformation_field,
+            particle_shifts=particle_shifts,
+            template=template,
+            fixed_filters=fixed_filters,
+            frame_independent_kwargs=frame_independent_kwargs,
+            correlation_batch_size=correlation_batch_size,
+            apply_projection_normalization=apply_projection_normalization,
+            apply_template_dose_weighting=apply_template_dose_weighting,
+            output_mode=output_mode,
         )
 
-    def _run_per_frame_collect(
+    def _collect_stacked_results(
         self,
         ctx: FrameInspectionContext,
-        output_dataframe_path: str | None,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
-        """Score every frame and return the stacked results.
+        """Score every frame and stack the results with frame as the leading axis.
 
         Parameters
         ----------
         ctx : FrameInspectionContext
             Shared inputs and settings for this inspection run.
-        output_dataframe_path : str | None
-            If provided, also write reduced CSV summaries from the stacked results.
 
         Returns
         -------
         torch.Tensor | tuple[torch.Tensor, torch.Tensor]
-            Stacked per-frame results (``(T, N, ...)`` CC tensor or FRC tuple).
+            Stacked per-frame results: a ``(T, N, n_px, n_def, n_orient, H, W)`` CC
+            tensor, or ``(stacked_frc, frequency_bins)`` in FRC mode where
+            ``stacked_frc`` has shape ``(T, N, n_px, n_def, n_orient, n_freq)``.
         """
         frame_results = [
             result for _, result in self._iter_frame_inspection_results(ctx)
         ]
-        stacked_results = self._stack_frame_results(frame_results, ctx.output_mode)
-        if output_dataframe_path is not None:
-            self.process_frame_results(
-                frame_results=stacked_results,
-                output_dataframe_path=output_dataframe_path,
-                output_mode=ctx.output_mode,
-            )
-        return stacked_results
+        return self._stack_frame_results(frame_results, ctx.output_mode)
 
     def run_peak_inspection_per_frame(
         self,
@@ -907,13 +747,12 @@ class FrameInspectionManager(PeakInspectionManager):
         template_tensor: torch.Tensor | None = None,
         output_mode: Literal["cross_correlation", "frc"] = "cross_correlation",
         apply_template_dose_weighting: bool = False,
-        output_dataframe_path: str | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """Run peak inspection independently for every movie frame.
 
         Composes the per-frame pipeline: load the movie/motion inputs, prepare the
         shared template and fixed whitening filters, build the frame-independent
-        backend kwargs, then dispatch to the streaming-CSV or result-collecting path.
+        backend kwargs, then score and stack every frame.
 
         Parameters
         ----------
@@ -930,46 +769,107 @@ class FrameInspectionManager(PeakInspectionManager):
         apply_template_dose_weighting : bool, optional
             If True, apply cumulative dose filtering to the provided non-dose-
             weighted template separately for each frame interval.
-        output_dataframe_path : str | None, optional
-            If provided (CC mode), write per-frame and summed CSV summaries including
-            ``sum_frames_mip`` (sum of per-frame peak CC) and ``cc_of_sum_mip`` (peak
-            CC on the particle stack summed across frames; same whitening as per-frame).
 
         Returns
         -------
         torch.Tensor | tuple[torch.Tensor, torch.Tensor]
-            Stacked per-frame results, or an empty tensor when results were streamed
-            directly to CSV (CC mode with ``output_dataframe_path``).
+            Stacked per-frame results: a ``(T, N, n_px, n_def, n_orient, H, W)`` CC
+            tensor, or ``(stacked_frc, frequency_bins)`` in FRC mode.
         """
-        movie, deformation_field, particle_shifts = (
-            self._load_and_setup_frame_inspection()
-        )
-        template = self._prepare_frame_template(template_tensor=template_tensor)
-        fixed_filters = self._setup_fixed_frame_normalization_filters(
-            movie=movie,
-            deformation_field=deformation_field,
-            particle_shifts=particle_shifts,
-            template=template,
-        )
-        frame_independent_kwargs = self._setup_frame_independent_kwargs(
-            template=template,
-            prefer_refined_angles=prefer_refined_angles,
-        )
-        ctx = FrameInspectionContext(
-            movie=movie,
-            deformation_field=deformation_field,
-            particle_shifts=particle_shifts,
-            template=template,
-            fixed_filters=fixed_filters,
-            frame_independent_kwargs=frame_independent_kwargs,
+        ctx = self._build_inspection_context(
             correlation_batch_size=correlation_batch_size,
+            prefer_refined_angles=prefer_refined_angles,
             apply_projection_normalization=apply_projection_normalization,
-            apply_template_dose_weighting=apply_template_dose_weighting,
+            template_tensor=template_tensor,
             output_mode=output_mode,
+            apply_template_dose_weighting=apply_template_dose_weighting,
+        )
+        return self._collect_stacked_results(ctx)
+
+    def run_and_save_peak_inspection_per_frame(
+        self,
+        output_path: str | Path,
+        correlation_batch_size: int = 32,
+        prefer_refined_angles: bool = True,
+        apply_projection_normalization: bool = True,
+        template_tensor: torch.Tensor | None = None,
+        output_mode: Literal["cross_correlation", "frc"] = "cross_correlation",
+        apply_template_dose_weighting: bool = False,
+    ) -> Path:
+        """Run per-frame peak inspection and write a self-describing ``.npz`` file.
+
+        Parameters
+        ----------
+        output_path : str | Path
+            Destination path for the ``.npz`` file (suffix appended if missing).
+        correlation_batch_size : int, optional
+            Number of orientation offsets processed per backend batch.
+        prefer_refined_angles : bool, optional
+            If True, use refined Euler angles from the particle stack when available.
+        apply_projection_normalization : bool, optional
+            Whether to normalize each projection before scoring.
+        template_tensor : torch.Tensor | None, optional
+            Optional template volume override.
+        output_mode : Literal["cross_correlation", "frc"], optional
+            Score mode (CC maps or FRC spectra).
+        apply_template_dose_weighting : bool, optional
+            If True, apply cumulative dose filtering to the provided non-dose-
+            weighted template separately for each frame interval.
+
+        Returns
+        -------
+        Path
+            The path the result was written to (with ``.npz`` suffix).
+        """
+        ctx = self._build_inspection_context(
+            correlation_batch_size=correlation_batch_size,
+            prefer_refined_angles=prefer_refined_angles,
+            apply_projection_normalization=apply_projection_normalization,
+            template_tensor=template_tensor,
+            output_mode=output_mode,
+            apply_template_dose_weighting=apply_template_dose_weighting,
+        )
+        stacked_results = self._collect_stacked_results(ctx)
+
+        # Move the frame axis behind the particle axis: (T, N, ...) -> (N, T, ...).
+        num_frames = ctx.movie.shape[0]
+        if output_mode == "frc":
+            stacked_frc, frequency_bins = stacked_results
+            result: torch.Tensor | tuple[torch.Tensor, torch.Tensor] = (
+                stacked_frc.transpose(0, 1),
+                frequency_bins,
+            )
+        else:
+            assert isinstance(stacked_results, torch.Tensor)
+            result = stacked_results.transpose(0, 1)
+
+        kwargs = ctx.frame_independent_kwargs
+        base_defocus = torch.stack(
+            [kwargs["defocus_u"], kwargs["defocus_v"], kwargs["defocus_angle"]],
+            dim=-1,
+        )
+        df = self.particle_stack._df  # pylint: disable=protected-access
+        particle_index = (
+            df["particle_index"].to_numpy() if "particle_index" in df.columns else None
         )
 
-        if output_mode == "cross_correlation" and output_dataframe_path is not None:
-            self._run_per_frame_cross_correlation_csv(ctx, output_dataframe_path)
-            return torch.empty(0)
-
-        return self._run_per_frame_collect(ctx, output_dataframe_path)
+        return save_inspection_result(
+            output_path,
+            result=result,
+            output_mode=output_mode,
+            euler_angle_offsets=kwargs["euler_angle_offsets"],
+            defocus_offsets=kwargs["defocus_offsets"],
+            pixel_size_offsets=kwargs["pixel_size_offsets"],
+            base_euler_angles=kwargs["euler_angles"],
+            base_defocus=base_defocus,
+            particle_index=particle_index,
+            frame_index=torch.arange(num_frames),
+            per_frame=True,
+            extra_metadata={
+                "prefer_refined_angles": prefer_refined_angles,
+                "apply_projection_normalization": apply_projection_normalization,
+                "apply_template_dose_weighting": apply_template_dose_weighting,
+                "correlation_batch_size": correlation_batch_size,
+                "movie_path": self.movie_config.movie_path,
+            },
+        )

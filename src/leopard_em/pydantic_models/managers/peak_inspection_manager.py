@@ -148,6 +148,17 @@ class PeakInspectionManager(RefineTemplateManager):
             df["particle_index"].to_numpy() if "particle_index" in df.columns else None
         )
 
+        # Per-particle base astigmatic defocus (defocus_u, defocus_v, defocus_angle) so
+        # absolute defocus can be reconstructed = base_defocus + defocus_offsets.
+        base_defocus = torch.stack(
+            [
+                backend_kwargs["defocus_u"],
+                backend_kwargs["defocus_v"],
+                backend_kwargs["defocus_angle"],
+            ],
+            dim=-1,
+        )
+
         return save_inspection_result(
             output_path,
             result=result,
@@ -156,6 +167,7 @@ class PeakInspectionManager(RefineTemplateManager):
             defocus_offsets=backend_kwargs["defocus_offsets"],
             pixel_size_offsets=backend_kwargs["pixel_size_offsets"],
             base_euler_angles=backend_kwargs["euler_angles"],
+            base_defocus=base_defocus,
             particle_index=particle_index,
             extra_metadata={
                 "prefer_refined_angles": prefer_refined_angles,

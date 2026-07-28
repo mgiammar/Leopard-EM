@@ -165,15 +165,13 @@ class MatchTemplateManager(BaseModel2DTM):
         bandpass_filter = bp_config.calculate_bandpass_filter(image_dft.shape)
 
         # Calculate the cumulative filters for both the image and the template.
-        # NOTE: We don't want to do random fourier masking on the image, so disable
-        # it temporarily (if needed)
-        do_random_masking = self.preprocessing_filters.random_fourier_dropout.enabled
-        self.preprocessing_filters.random_fourier_dropout.enabled = False
+        # NOTE: We don't want to do random fourier masking on the image, so skip the
+        # dropout mask for the image-side filter (without mutating the config).
         cumulative_filter_image = self.preprocessing_filters.get_combined_filter(
             ref_img_rfft=image_dft,
             output_shape=image_dft.shape,
+            apply_random_dropout=False,
         )
-        self.preprocessing_filters.random_fourier_dropout.enabled = do_random_masking
 
         # NOTE: Here, manually accounting for the RFFT in output shape since we have not
         # RFFT'd the template volume yet. Also, this is 2-dimensional, not 3-dimensional

@@ -411,7 +411,10 @@ class PreprocessingFilters(BaseModel2DTM):
     )
 
     def get_combined_filter(
-        self, ref_img_rfft: torch.Tensor, output_shape: tuple[int, ...]
+        self,
+        ref_img_rfft: torch.Tensor,
+        output_shape: tuple[int, ...],
+        apply_random_dropout: bool = True,
     ) -> torch.Tensor:
         """Combine all filters into a single filter.
 
@@ -423,6 +426,10 @@ class PreprocessingFilters(BaseModel2DTM):
             Desired output shape of the combined filter in Fourier space. This is the
             filter shape in Fourier space *not* real space (like in the
             torch_fourier_filter package).
+        apply_random_dropout : bool, optional
+            Whether to include the random Fourier dropout mask in the combined filter.
+            Pass ``False`` to skip dropout (e.g. for the image side of match-template)
+            without mutating the configured dropout state. Defaults to ``True``.
 
         Returns
         -------
@@ -447,15 +454,17 @@ class PreprocessingFilters(BaseModel2DTM):
         arbitrary_curve_filter_tensor = ac_config.calculate_arbitrary_curve_filter(
             output_shape=output_shape
         ).to(device)
-        random_dropout_mask = self.random_fourier_dropout.calculate_dropout_mask(
-            output_shape=output_shape
-        ).to(device)
 
         combined_filter = (
             whitening_filter_tensor
             * bandpass_filter_tensor
             * arbitrary_curve_filter_tensor
-            * random_dropout_mask
         )
+
+        if apply_random_dropout:
+            random_dropout_mask = self.random_fourier_dropout.calculate_dropout_mask(
+                output_shape=output_shape
+            ).to(device)
+            combined_filter = combined_filter * random_dropout_mask
 
         return combined_filter
