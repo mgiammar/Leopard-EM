@@ -163,6 +163,9 @@ filterwarnings = [
     "error",
     "ignore::FutureWarning",
     "ignore::DeprecationWarning:torch.jit",
+    # mrcfile sets ndarray.dtype directly when reading/writing headers, which NumPy
+    # 2.5 deprecated. Pending a newer mrcfile release; safe to ignore for now.
+    "ignore:Setting the dtype on a NumPy array has been deprecated.*:DeprecationWarning",
 ]
 addopts = "-m 'not slow'" # Skip slow tests on default
 markers = ["slow: marks test as slow"]
