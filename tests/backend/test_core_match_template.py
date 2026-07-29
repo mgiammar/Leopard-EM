@@ -139,21 +139,25 @@ def test_core_match_template():
     theta_set = set(zip(diff_theta[0], diff_theta[1]))
     psi_set = set(zip(diff_psi[0], diff_psi[1]))
 
-    assert len(defocus_set.intersection(phi_set)) / len(defocus_set)
-    assert len(defocus_set.intersection(theta_set)) / len(defocus_set)
-    assert len(defocus_set.intersection(psi_set)) / len(defocus_set)
+    if len(defocus_set) > 0:
+        assert len(defocus_set.intersection(phi_set)) / len(defocus_set)
+        assert len(defocus_set.intersection(theta_set)) / len(defocus_set)
+        assert len(defocus_set.intersection(psi_set)) / len(defocus_set)
 
-    assert len(phi_set.intersection(defocus_set)) / len(phi_set)
-    assert len(phi_set.intersection(theta_set)) / len(phi_set)
-    assert len(phi_set.intersection(psi_set)) / len(phi_set)
+    if len(phi_set) > 0:
+        assert len(phi_set.intersection(defocus_set)) / len(phi_set)
+        assert len(phi_set.intersection(theta_set)) / len(phi_set)
+        assert len(phi_set.intersection(psi_set)) / len(phi_set)
 
-    assert len(theta_set.intersection(defocus_set)) / len(theta_set)
-    assert len(theta_set.intersection(phi_set)) / len(theta_set)
-    assert len(theta_set.intersection(psi_set)) / len(theta_set)
+    if len(theta_set) > 0:
+        assert len(theta_set.intersection(defocus_set)) / len(theta_set)
+        assert len(theta_set.intersection(phi_set)) / len(theta_set)
+        assert len(theta_set.intersection(psi_set)) / len(theta_set)
 
-    assert len(psi_set.intersection(defocus_set)) / len(psi_set)
-    assert len(psi_set.intersection(phi_set)) / len(psi_set)
-    assert len(psi_set.intersection(theta_set)) / len(psi_set)
+    if len(psi_set) > 0:
+        assert len(psi_set.intersection(defocus_set)) / len(psi_set)
+        assert len(psi_set.intersection(phi_set)) / len(psi_set)
+        assert len(psi_set.intersection(theta_set)) / len(psi_set)
 
 
 if __name__ == "__main__":

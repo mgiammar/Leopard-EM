@@ -68,7 +68,7 @@ def check_file_path_and_permissions(path: str, allow_overwrite: bool) -> None:
     # 2. Check write permissions
     if directory and not os.access(directory, os.W_OK):
         raise ValueError(
-            f"Directory '{directory}' does not permit writing."
+            f"Directory '{directory}' does not permit writing. "
             f"Will be unable to write results to '{path}'."
         )
 
@@ -76,7 +76,7 @@ def check_file_path_and_permissions(path: str, allow_overwrite: bool) -> None:
     if not allow_overwrite and os.path.exists(path):
         raise ValueError(
             f"File '{path}' already exists, but 'allow_file_overwrite' "
-            "is False. Set 'allow_file_overwrite' to True to permit. "
+            "is False. Set 'allow_file_overwrite' to True to permit "
             "overwriting.\n"
             "WARNING: Overwriting will delete the existing file(s)!"
         )
