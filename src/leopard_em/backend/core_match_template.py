@@ -163,6 +163,7 @@ def core_match_template(
     num_cuda_streams: int = 1,
     backend: str = "streamed",
     mag_matrix: torch.Tensor | None = None,
+    compute_correlation_table: bool = True,
 ) -> dict[str, torch.Tensor | dict | int]:
     """Core function for performing the whole-orientation search.
 
@@ -220,6 +221,10 @@ def core_match_template(
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
+    compute_correlation_table : bool, optional
+        Whether to track cross-correlation values which surpass the correlation table
+        threshold. If False, this (comparatively expensive) computation is skipped and
+        the returned "correlation_table" will be empty. Default is True.
 
     Returns
     -------
@@ -325,6 +330,7 @@ def core_match_template(
             "backend": backend,
             "device": d,
             "mag_matrix": mag_matrix,
+            "compute_correlation_table": compute_correlation_table,
         }
 
         kwargs_per_device.append(kwargs)
@@ -398,6 +404,7 @@ def _core_match_template_single_gpu(
     backend: str,
     device: torch.device,
     mag_matrix: torch.Tensor | None = None,
+    compute_correlation_table: bool = True,
 ) -> tuple[
     torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, tensordict.TensorDict
 ]:
@@ -442,6 +449,10 @@ def _core_match_template_single_gpu(
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
+    compute_correlation_table : bool, optional
+        Whether to track cross-correlation values which surpass the correlation table
+        threshold. If False, this (comparatively expensive) computation is skipped and
+        the returned correlation table will be empty. Default is True.
 
     Returns
     -------
@@ -604,6 +615,11 @@ def _core_match_template_single_gpu(
                         rotation_matrices=rot_matrix,
                         projective_filters=projective_filters,
                     )
+                else:
+                    raise ValueError(
+                        f"Unknown backend '{backend}'. Must be one of 'batched', "
+                        "'streamed', or 'zipfft'."
+                    )
 
                 # Update tracked statistics and correlation table
                 do_iteration_and_correlation_table_updates(
@@ -618,6 +634,7 @@ def _core_match_template_single_gpu(
                     valid_shape_h=valid_correlation_shape[0],
                     valid_shape_w=valid_correlation_shape[1],
                     needs_valid_cropping=(backend != "zipfft"),
+                    compute_correlation_table=compute_correlation_table,
                 )
 
         except Exception as e:

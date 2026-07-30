@@ -190,36 +190,36 @@ class CorrelationTable(BaseModel2DTM):
             meta.attrs["correlation_threshold"] = self.correlation_threshold
             meta.attrs["num_observations"] = self.num_observations
 
-            ss = f.create_group("search_space")
-            ss.create_dataset(
+            search_space = f.create_group("search_space")
+            search_space.create_dataset(
                 "defocus_offsets",
                 data=np.array(self.defocus_offsets, dtype=np.float32),
             )
-            ss.create_dataset(
+            search_space.create_dataset(
                 "phi_theta_angles",
                 data=np.array(self.phi_theta_angles, dtype=np.float32),
             )
-            ss.create_dataset(
+            search_space.create_dataset(
                 "psi_angles",
                 data=np.array(self.psi_angles, dtype=np.float32),
             )
 
-            det = f.create_group("detections")
-            det.create_dataset(
+            detections = f.create_group("detections")
+            detections.create_dataset(
                 "search_index",
                 data=np.array(self.search_index, dtype=np.int32),
             )
-            det.create_dataset("x", data=np.array(self.x, dtype=np.int32))
-            det.create_dataset("y", data=np.array(self.y, dtype=np.int32))
-            det.create_dataset(
+            detections.create_dataset("x", data=np.array(self.x, dtype=np.int32))
+            detections.create_dataset("y", data=np.array(self.y, dtype=np.int32))
+            detections.create_dataset(
                 "correlation_value",
                 data=np.array(self.correlation_value, dtype=np.float32),
             )
-            det.create_dataset(
+            detections.create_dataset(
                 "correlation_mean",
                 data=np.array(self.correlation_mean, dtype=np.float32),
             )
-            det.create_dataset(
+            detections.create_dataset(
                 "correlation_variance",
                 data=np.array(self.correlation_variance, dtype=np.float32),
             )
@@ -310,7 +310,6 @@ class CorrelationTable(BaseModel2DTM):
             euler_angles
         )
 
-        # For match_template (num_cs == 1), the backend global_idx equals the
         search_index = (
             list(global_idx) if isinstance(global_idx, list) else global_idx.tolist()
         )

@@ -173,13 +173,6 @@ def test_batched_zipfft_cross_correlate_consistency(sample_input_data):
     l2_norm_diff = torch.norm(zipfft_result - batched_result).item()
     l2_norm_diff /= torch.prod(torch.tensor(zipfft_result.shape)).item()
 
-    # ### DEBUGGING: Save each result to file
-    # import numpy as np
-
-    # np.save("batched_result.npy", batched_result.cpu().numpy())
-    # np.save("zipfft_result.npy", zipfft_result.cpu().numpy())
-    # ### END DEBUGGING
-
     assert l2_norm_diff < 1e-6, (
         f"Batched and zip-FFT cross-correlation results differ too much.\n"
         f"L2 norm of difference: {l2_norm_diff}\n"

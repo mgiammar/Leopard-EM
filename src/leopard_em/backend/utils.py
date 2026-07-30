@@ -5,8 +5,8 @@ import re
 import warnings
 from typing import Any, Callable, TypeVar
 
-import tensordict
 import roma
+import tensordict
 import torch
 
 # Suppress the specific deprecation warnings from PyTorch internals
@@ -200,6 +200,7 @@ def _stats_and_table_core(
     valid_shape_h: int,
     valid_shape_w: int,
     needs_valid_cropping: bool = True,
+    compute_correlation_table: bool = True,
 ) -> tuple[
     torch.Tensor,
     torch.Tensor,
@@ -241,6 +242,8 @@ def _stats_and_table_core(
         Whether the cross-correlation tensor should be cropped (via a view operation).
         If False, the cross-correlation tensor is assumed to already be in the valid
         shape.
+    compute_correlation_table : bool, optional
+        Whether to find and return threshold exceedances for the correlation table.
     """
     # create cropped view as in existing functions
     if needs_valid_cropping:
@@ -275,9 +278,15 @@ def _stats_and_table_core(
     corr_sq_sum = (cc_reshaped * cc_reshaped).sum(dim=0)
 
     # find threshold exceedances (for correlation table)
-    batch_idxs, y_idxs, x_idxs = torch.where(cc_reshaped > threshold)
-    values = cc_reshaped[batch_idxs, y_idxs, x_idxs]
-    global_idxs = current_indexes[batch_idxs]
+    if compute_correlation_table:
+        batch_idxs, y_idxs, x_idxs = torch.where(cc_reshaped > threshold)
+        values = cc_reshaped[batch_idxs, y_idxs, x_idxs]
+        global_idxs = current_indexes[batch_idxs]
+    else:
+        empty_int = torch.empty(0, dtype=torch.int64, device=cc_reshaped.device)
+        y_idxs = x_idxs = empty_int
+        values = torch.empty(0, dtype=cc_reshaped.dtype, device=cc_reshaped.device)
+        global_idxs = current_indexes[empty_int]
 
     return (
         new_mip,
@@ -306,6 +315,7 @@ def do_iteration_and_correlation_table_updates(
     valid_shape_h: int,
     valid_shape_w: int,
     needs_valid_cropping: bool = True,
+    compute_correlation_table: bool = True,
 ) -> None:
     """Helper function for updating maxima, tracked statistics, and correlation table.
 
@@ -344,6 +354,9 @@ def do_iteration_and_correlation_table_updates(
         Whether the cross-correlation tensor should be cropped (via a view operation)
         to the valid dimensions (defined by `img_h` and `img_w`). If False, the
         cross-correlation tensor is assumed to already be in the valid shape.
+    compute_correlation_table : bool, optional
+        Whether to threshold the cross-correlation values and add exceedances to the
+        correlation table.
     """
     # call compiled core
     (
@@ -364,6 +377,7 @@ def do_iteration_and_correlation_table_updates(
         valid_shape_h,
         valid_shape_w,
         needs_valid_cropping=needs_valid_cropping,
+        compute_correlation_table=compute_correlation_table,
     )
 
     # update inplace the statistics tensors

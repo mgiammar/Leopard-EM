@@ -231,6 +231,7 @@ class MatchTemplateManager(BaseModel2DTM):
         orientation_batch_size: int = 16,
         do_result_export: bool = True,
         do_valid_cropping: bool = False,
+        compute_correlation_table: bool = True,
     ) -> None:
         """Runs the base match template in pytorch.
 
@@ -246,6 +247,10 @@ class MatchTemplateManager(BaseModel2DTM):
             size of the image and template (N-n+1 along each axis). The backend of
             Leopard-EM will automatically do this, so generally set this to False. The
             default is False.
+        compute_correlation_table : bool
+            If True, track cross-correlation values which surpass the correlation
+            table threshold during the search. If False, the `CorrelationTable` will be
+            empty. Default is True.
 
         Returns
         -------
@@ -257,6 +262,7 @@ class MatchTemplateManager(BaseModel2DTM):
             orientation_batch_size=orientation_batch_size,
             num_cuda_streams=self.computational_config.num_cpus,
             backend=self.computational_config.backend,
+            compute_correlation_table=compute_correlation_table,
         )
 
         # Populate the MatchTemplateResult via a private helper
@@ -276,6 +282,7 @@ class MatchTemplateManager(BaseModel2DTM):
         orientation_batch_size: int = 16,
         do_result_export: bool = True,
         do_valid_cropping: bool = False,
+        compute_correlation_table: bool = True,
     ) -> None:
         """Runs the base match template in a distributed, multi-node environment.
 
@@ -297,6 +304,10 @@ class MatchTemplateManager(BaseModel2DTM):
             size of the image and template (N-n+1 along each axis). The backend of
             Leopard-EM will automatically do this, so generally set this to False. The
             default is False.
+        compute_correlation_table : bool
+            If True, track cross-correlation values which surpass the correlation
+            table threshold during the search. If False, the `CorrelationTable` will be
+            empty. Default is True.
 
         Raises
         ------
@@ -330,6 +341,7 @@ class MatchTemplateManager(BaseModel2DTM):
             orientation_batch_size,
             self.computational_config.num_cpus,
             self.computational_config.backend,
+            compute_correlation_table=compute_correlation_table,
             **core_kwargs,
         )
 
