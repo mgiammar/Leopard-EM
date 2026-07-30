@@ -33,8 +33,16 @@ ZENODO_URL = "https://zenodo.org/records/17069838"
 ORIENTATION_BATCH_SIZE = 20
 
 
-def download_comparison_data() -> None:
-    """Downloads the example data from Zenodo."""
+def download_comparison_data(force_download: bool = False) -> None:
+    """Downloads the example data from Zenodo, skipping if already present.
+
+    Parameters
+    ----------
+    force_download : bool
+        If True, re-download the data even if it appears to already be present.
+    """
+    if YAML_PATH.exists() and not force_download:
+        return
     subprocess.run(["zenodo_get", "--output-dir=tests/tmp", ZENODO_URL], check=True)
 
 
@@ -56,7 +64,7 @@ def mrcfile_allclose(path_a: str, path_b: str, **kwargs) -> bool:
 )
 @pytest.mark.slow
 def test_core_match_template():
-    # download_comparison_data()
+    download_comparison_data()
     mt_manager = setup_match_template_manager()
 
     # Run the match template program
