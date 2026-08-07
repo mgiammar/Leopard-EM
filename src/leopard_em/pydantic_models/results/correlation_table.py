@@ -268,6 +268,7 @@ class CorrelationTable(BaseModel2DTM):
         )
 
     @classmethod
+    # pylint: disable=too-many-locals
     def from_match_template_results(
         cls,
         processed_correlation_table: dict,

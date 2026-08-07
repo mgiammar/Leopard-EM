@@ -403,6 +403,7 @@ class MatchTemplateManager(BaseModel2DTM):
         if do_result_export:
             self.match_template_result.export_results()
 
+    # pylint: disable=too-many-statements
     def results_to_dataframe(
         self,
         half_template_width_pos_shift: bool = True,

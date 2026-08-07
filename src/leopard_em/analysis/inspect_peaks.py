@@ -373,6 +373,10 @@ def _core_inspect_template_single_thread(
         - ``"frc"``: tuple ``(frc_tensor, frequency_bins)`` where
           ``frc_tensor`` is ``(n_px, n_defocus, n_orient, n_freq)``.
     """
+    # Unused, but kept to mirror similar API
+    _ = corr_mean
+    _ = corr_std
+
     if output_mode == "frc":
         frc_batches = _iter_refine_particle_frc_batches(
             particle_image_dft=particle_image_dft,

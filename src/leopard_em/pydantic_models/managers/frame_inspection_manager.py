@@ -53,6 +53,7 @@ class FixedFrameFilters:
 
 
 @dataclass(frozen=True)
+# pylint: disable=too-many-instance-attributes
 class FrameInspectionContext:
     """Immutable inputs threaded through one per-frame inspection run.
 
@@ -434,7 +435,7 @@ class FrameInspectionManager(PeakInspectionManager):
                 padding_mode="reflect",
                 padding_value=0.0,
             )
-            summed_particle_images_dft = torch.fft.rfftn(
+            summed_particle_images_dft = torch.fft.rfftn(  # pylint: disable=not-callable
                 summed_particle_images, dim=(-2, -1)
             )
             summed_particle_images_dft[..., 0, 0] = 0.0 + 0.0j
@@ -786,6 +787,7 @@ class FrameInspectionManager(PeakInspectionManager):
         )
         return self._collect_stacked_results(ctx)
 
+    # pylint: disable=too-many-locals
     def run_and_save_peak_inspection_per_frame(
         self,
         output_path: str | Path,

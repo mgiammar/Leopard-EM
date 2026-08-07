@@ -12,11 +12,13 @@ The base class ``_ParticleStackBase`` holds all shared computation methods and
 tensor fields.  It is not intended to be used directly.
 """
 
+# pylint: disable=too-many-lines
+# pylint: disable=fixme
+
 # TODO: Move these into two separate files (long file)
 
-# pylint: disable=too-many-lines
-
 import json
+import os
 import warnings
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -1455,7 +1457,7 @@ class ParticleStackCSV(_ParticleStackBase):
             ),
             skip_df_load=True,
         )
-        hdf5_stack._df = df
+        hdf5_stack._df = df  # pylint: disable=protected-access
         hdf5_stack.to_hdf5(
             include_image_stack=include_image_stack,
             include_local_stats=include_local_stats,
@@ -1539,8 +1541,6 @@ class ParticleStackHDF5(_ParticleStackBase):
             If the path is not writable or the file exists and overwrite is
             disabled.
         """
-        import os
-
         directory = str(Path(self.hdf5_path).parent)
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
@@ -1568,8 +1568,6 @@ class ParticleStackHDF5(_ParticleStackBase):
         FileNotFoundError
             If ``hdf5_path`` does not exist.
         """
-        import os
-
         if not os.path.exists(self.hdf5_path):
             raise FileNotFoundError(
                 f"HDF5 file '{self.hdf5_path}' does not exist. "
@@ -1675,10 +1673,14 @@ class ParticleStackHDF5(_ParticleStackBase):
         """
         with h5py.File(path, "r") as f:
             leopard_em_version = str(f.attrs.get("leopard_em_version", "unknown"))
+            # NOTE: h5py's type stubs report AttributeManager.__getitem__ as returning
+            # a non-iterable Any, but for array-valued attributes it is a numpy array.
+            # pylint: disable=not-an-iterable
             extracted_box_size = tuple(int(v) for v in f.attrs["extracted_box_size"])
             original_template_size = tuple(
                 int(v) for v in f.attrs["original_template_size"]
             )
+            # pylint: enable=not-an-iterable
             global_whitening_applied = bool(
                 f.attrs.get("global_whitening_applied", False)
             )

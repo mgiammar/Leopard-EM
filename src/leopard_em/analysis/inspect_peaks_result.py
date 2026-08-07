@@ -95,6 +95,7 @@ FRC_FRAME_AXES = (
 
 
 @dataclass
+# pylint: disable=too-many-instance-attributes
 class InspectionResult:
     """Self-describing container for a saved peak-inspection run.
 
@@ -156,7 +157,7 @@ def _to_numpy(tensor: torch.Tensor | np.ndarray) -> np.ndarray:
     return np.asarray(tensor)
 
 
-# pylint: disable=too-many-arguments,too-many-positional-arguments
+# pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-locals
 def save_inspection_result(
     output_path: str | Path,
     *,
