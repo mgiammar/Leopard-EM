@@ -50,6 +50,8 @@ dependencies = [
     "tqdm",
     "lmfit",
     "zenodo-get",
+    "h5py",
+    "tensordict",
     # TeamTomo dependencies
     "ttsim3d>=v0.4.0",
     "torch-fourier-slice>=v0.5.2",
