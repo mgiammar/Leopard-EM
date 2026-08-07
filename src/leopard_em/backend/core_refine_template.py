@@ -398,10 +398,11 @@ def construct_multi_gpu_refine_template_kwargs(
 
         # Split tensors for this device. All these tensors are per-particle, that is
         # the i-th element in each tensor corresponds to the i-th particle in the stack.
+        #
         # Move to CPU before passing to child processes: Python multiprocessing uses
         # fork on Linux, and CUDA tensors shared across forked processes via CUDA IPC
         # are unreliable (they silently read as zeros for non-primary GPUs). Sending CPU
-        # tensors avoids CUDA IPC entirely; each worker does a clean CPU→GPU transfer
+        # tensors avoids CUDA IPC entirely; each worker does a clean CPU-->GPU transfer
         # via _move_refine_template_stack_to_device.
         device_particle_stack_dft = particle_stack_dft[start_idx:end_idx].cpu()
         device_euler_angles = euler_angles[start_idx:end_idx].cpu()

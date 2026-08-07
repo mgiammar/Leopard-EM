@@ -33,8 +33,16 @@ ZENODO_URL = "https://zenodo.org/records/17069838"
 ORIENTATION_BATCH_SIZE = 20
 
 
-def download_comparison_data() -> None:
-    """Downloads the example data from Zenodo."""
+def download_comparison_data(force_download: bool = False) -> None:
+    """Downloads the example data from Zenodo, skipping if already present.
+
+    Parameters
+    ----------
+    force_download : bool
+        If True, re-download the data even if it appears to already be present.
+    """
+    if YAML_PATH.exists() and not force_download:
+        return
     subprocess.run(["zenodo_get", "--output-dir=tests/tmp", ZENODO_URL], check=True)
 
 
@@ -63,7 +71,13 @@ def test_core_match_template():
     mt_manager.run_match_template(
         orientation_batch_size=ORIENTATION_BATCH_SIZE,
         do_result_export=True,  # Saves the statistics immediately upon completion
+        do_valid_cropping=False,  # testing backend doing valid cropping in-place
     )
+
+    corr_table = mt_manager.match_template_result.correlation_table
+    import pandas as pd
+
+    pd.DataFrame(corr_table).to_csv("tests/tmp/test_corr_table.csv")
 
     # Ensure the MIPs are the same, if they are not then there's an issue...
     assert mrcfile_allclose(
