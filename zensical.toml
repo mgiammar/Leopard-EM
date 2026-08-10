@@ -27,7 +27,11 @@ nav = [
     { "Optimize Template details"  = "programs/optimize_template.md" },
     { "Constrained Search details" = "programs/constrained_search.md" },
   ]},
-  { "Program Output Formats" = "data_formats.md" },
+  { "Program Output Formats" = [
+    { "Overview"                             = "data_formats.md" },
+    { "Match Template Results (MRC vs HDF5)" = "data_formats/match_template_results.md" },
+    { "Particle Stacks (CSV vs HDF5)"        = "data_formats/particle_stack.md" },
+  ]},
   { "Benchmarks"             = "benchmarks.md" },
   { "Common Issues"          = "common_issues.md" },
   { "API Reference" = [
