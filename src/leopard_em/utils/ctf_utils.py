@@ -16,6 +16,35 @@ if TYPE_CHECKING:
     from leopard_em.pydantic_models.data_structures.particle_stack import ParticleStack
 
 
+def move_ctf_kwargs_tensors_to_device(
+    ctf_kwargs: dict[str, Any], device: torch.device
+) -> dict[str, Any]:
+    """Copy CTF kwargs so tensor-valued entries live on ``device``.
+
+    Used by multi-GPU refine/inspect workers: ``_setup_ctf_kwargs_from_particle_stack``
+    builds ``mag_matrix`` and Zernike dicts on CPU;
+    ``calculate_ctf_filter_stack_full_args``
+    must run with tensors on the same device as ``projective_filter`` / particle FFTs.
+    """
+    kwargs = dict(ctf_kwargs)
+    mag = kwargs.get("mag_matrix")
+    if isinstance(mag, torch.Tensor):
+        kwargs["mag_matrix"] = mag.to(device=device)
+    ez = kwargs.get("even_zernikes")
+    if isinstance(ez, dict):
+        kwargs["even_zernikes"] = {
+            k: v.to(device=device) if isinstance(v, torch.Tensor) else v
+            for k, v in ez.items()
+        }
+    oz = kwargs.get("odd_zernikes")
+    if isinstance(oz, dict):
+        kwargs["odd_zernikes"] = {
+            k: v.to(device=device) if isinstance(v, torch.Tensor) else v
+            for k, v in oz.items()
+        }
+    return kwargs
+
+
 def calculate_ctf_filter_stack_full_args(
     template_shape: tuple[int, int],
     defocus_u: float,  # in Angstrom

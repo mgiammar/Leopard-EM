@@ -4,8 +4,12 @@ import mrcfile
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from leopard_em.pydantic_models.data_structures.particle_stack import ParticleStack
+
+# Tests construct minimal ParticleStack instances by assigning their backing frames.
+# pylint: disable=protected-access
 
 REQUIRED_COLUMNS = [
     "particle_index",
@@ -374,3 +378,75 @@ def test_particle_stack_top_left_and_center_self_consistency():
     assert np.allclose(extracted_mips_tl[1], mip2_tl)
     assert np.allclose(extracted_mips_center[0], mip1_center)
     assert np.allclose(extracted_mips_center[1], mip2_center)
+
+
+def test_construct_particle_movie_stack_assumes_aligned_without_motion_source():
+    """Per-frame movie extraction should support already aligned movies."""
+    df = make_minimal_df(num_rows=1)
+    df["pos_x"] = [1]
+    df["pos_y"] = [1]
+    df["pixel_size"] = [1.0]
+
+    particle_stack = ParticleStack(
+        df_path="",
+        extracted_box_size=(2, 2),
+        original_template_size=(2, 2),
+        skip_df_load=True,
+    )
+    particle_stack._df = df
+    movie = torch.arange(2 * 4 * 4, dtype=torch.float32).reshape(2, 4, 4)
+
+    with pytest.warns(UserWarning, match="movie is already aligned"):
+        particle_movie = particle_stack.construct_particle_movie_stack(
+            movie=movie,
+            use_gradient_checkpointing=False,
+        )
+
+    mean_zero_movie = movie - torch.mean(movie, dim=(-2, -1), keepdim=True)
+    expected = mean_zero_movie[:, None, 1:3, 1:3]
+    assert particle_movie.shape == (2, 1, 2, 2)
+    assert torch.allclose(particle_movie, expected)
+
+
+def test_construct_image_stack_from_movie_preserves_summed_output_shape(monkeypatch):
+    """The existing movie stack API should still return one image per particle."""
+    df = make_minimal_df(num_rows=1)
+    df["pos_x"] = [1]
+    df["pos_y"] = [1]
+    df["pixel_size"] = [1.0]
+    df["voltage"] = [300.0]
+
+    particle_stack = ParticleStack(
+        df_path="",
+        extracted_box_size=(2, 2),
+        original_template_size=(2, 2),
+        skip_df_load=True,
+    )
+    particle_stack._df = df
+    movie = torch.arange(2 * 4 * 4, dtype=torch.float32).reshape(2, 4, 4)
+    particle_shifts = torch.zeros((2, 1, 2), dtype=torch.float32)
+    dose_weight_calls = []
+
+    def fake_dose_weight_movie_to_micrograph(
+        movie_fft, pixel_size, pre_exposure, fluence_per_frame, voltage
+    ):
+        dose_weight_calls.append((pixel_size, pre_exposure, fluence_per_frame, voltage))
+        return torch.fft.irfftn(  # pylint: disable=not-callable
+            movie_fft, s=(2, 2), dim=(-2, -1)
+        ).sum(dim=0)
+
+    monkeypatch.setattr(
+        "leopard_em.pydantic_models.data_structures.particle_stack."
+        "dose_weight_movie_to_micrograph",
+        fake_dose_weight_movie_to_micrograph,
+    )
+
+    image_stack = particle_stack.construct_image_stack_from_movie(
+        movie=movie,
+        particle_shifts=particle_shifts,
+        use_gradient_checkpointing=False,
+    )
+
+    assert image_stack.shape == (1, 2, 2)
+    assert particle_stack.image_stack.shape == (1, 2, 2)
+    assert len(dose_weight_calls) == 1
