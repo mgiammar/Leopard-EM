@@ -139,3 +139,59 @@ New columns with descriptions are listed below:
 | `refined_theta`               | float | The refined \( \theta \) angle (in degrees).                                                      |
 | `refined_psi`                 | float | The refined \( \psi \) angle (in degrees).                                                        |
 | `refined_relative_defocus`    | float | The refined relative defocus value (in Angstroms).                                                |
+
+## Data from peak & frame inspection
+
+Where `refine_template` reduces its local search to a single best-scoring hypothesis per particle, the `inspect_peaks`/`frame_inspection` programs (see [Peak & Frame Inspection](programs/inspect_peaks.md)) return the *entire* grid of local scores.
+Because this is a dense tensor rather than a sparse table, results are saved as a single self-describing `.npz` file (via `leopard_em.analysis.save_inspection_result`/`load_inspection_result`) instead of a DataFrame or MRC/HDF5 statistics maps.
+
+### Score tensor shape
+
+The main array (`InspectionResult.scores`) has one of two shapes depending on `output_mode`:
+
+- `"cross_correlation"` mode: `(N, n_px, n_defocus, n_orient, H, W)` — local cross-correlation maps (valid-mode, same shapes as described in [the note on correlation modes](#a-note-on-correlation-modes-and-output-shapes)) for every searched hypothesis.
+- `"frc"` mode: `(N, n_px, n_defocus, n_orient, n_freq)` — local Fourier ring correlation spectra instead of full 2-D maps, which is far more compact for large searches.
+
+Per-frame inspection (`FrameInspectionManager`) inserts an additional `frame` axis immediately after the particle axis: `(N, T, n_px, n_defocus, n_orient, H, W)` or `(N, T, n_px, n_defocus, n_orient, n_freq)` for `T` movie frames.
+
+| Axis         | Meaning                                                                                                |
+|--------------|--------------------------------------------------------------------------------------------------------|
+| `N`          | Particle (row in the source particle stack).                                                           |
+| `T`          | Movie frame index (per-frame inspection only).                                                         |
+| `n_px`       | Pixel-size offset index — indexes `pixel_size_offsets`.                                                |
+| `n_defocus`  | Relative defocus offset index — indexes `defocus_offsets`.                                             |
+| `n_orient`   | Local Euler-angle offset index (phi, theta, psi) — indexes `euler_angle_offsets`.                      |
+| `H, W`       | Valid-mode spatial dimensions of the local cross-correlation map (`"cross_correlation"` mode only).    |
+| `n_freq`     | FRC frequency bin (`"frc"` mode only).                                                                 |
+
+The `.npz` file's `axes` metadata field always lists these labels in order.
+
+### `.npz` file contents`
+
+Besides `scores`, the file stores everything needed to interpret it without separately tracking how the run was configured:
+
+| Array                 | Shape             | Description                                                                                                                                       |
+|-----------------------|-------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| `scores`              | see above         | The main score tensor.                                                                                                                            |
+| `euler_angle_offsets` | `(n_orient, 3)`   | ZYZ orientation offsets searched, in degrees, relative to each particle's base orientation.                                                       |
+| `defocus_offsets`     | `(n_defocus,)`    | Relative defocus offsets searched (Angstroms).                                                                                                    |
+| `pixel_size_offsets`  | `(n_px,)`         | Relative pixel-size offsets searched.                                                                                                             |
+| `base_euler_angles`   | `(N, 3)`          | Per-particle base ZYZ angles the offsets are relative to.                                                                                         |
+| `base_defocus`        | `(N, 3)`          | Per-particle base astigmatic defocus `(defocus_u, defocus_v, defocus_angle)` the offsets are relative to.                                         |
+| `particle_index`      | `(N,)`            | Optional; maps tensor rows back to the source particle stack's `particle_index` column, if present.                                               |
+| `frequency_bins`      | `(n_freq,)`       | Optional; only present in `"frc"` mode.                                                                                                           |
+| `frame_index`         | `(T,)`            | Optional; only present for per-frame inspection results — the movie frame index for each entry of the `frame` axis.                               |
+| `metadata_json`       | —                 | JSON blob with `format_version` (currently `1`), `output_mode`, `axes`, `per_frame`, and any extra run metadata (e.g. `correlation_batch_size`).  |
+
+```python
+from leopard_em.analysis import load_inspection_result
+
+result = load_inspection_result("results_inspect_peaks.npz")
+result.scores        # main tensor; see result.axes for per-dimension labels
+result.axes          # e.g. ("particle", "pixel_size", "defocus", "orientation", "y", "x")
+result.particle_index  # maps tensor rows back to the particle stack, if available
+```
+
+!!! note "Versioned, backwards-incompatible format"
+
+    The `.npz` layout is tracked by `metadata["format_version"]` (currently `1`), bumped whenever the on-disk layout changes in a backwards-incompatible way.
