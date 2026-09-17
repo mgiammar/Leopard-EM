@@ -1,4 +1,4 @@
-"""Unit tests for CorrelationTable and derive_orientation_grid_from_full_angles."""
+"""Unit tests for CorrelationTable."""
 
 import os
 import tempfile
@@ -6,13 +6,7 @@ import tempfile
 import pytest
 import torch
 
-from leopard_em.pydantic_models.config.orientation_search import (
-    OrientationSearchConfig,
-)
-from leopard_em.pydantic_models.results.correlation_table import (
-    CorrelationTable,
-    derive_orientation_grid_from_full_angles,
-)
+from leopard_em.pydantic_models.results.correlation_table import CorrelationTable
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -56,8 +50,7 @@ def minimal_table() -> CorrelationTable:
         correlation_threshold=5.5,
         num_observations=3,
         defocus_offsets=[-500.0, 0.0, 500.0],
-        phi_theta_angles=[(0.0, 0.0), (45.0, 30.0)],
-        psi_angles=[0.0, 90.0, 180.0],
+        euler_angles=[(0.0, 0.0, 0.0), (0.0, 0.0, 90.0), (45.0, 30.0, 180.0)],
         search_index=[0, 5, 11],
         x=[10, 20, 30],
         y=[15, 25, 35],
@@ -74,8 +67,7 @@ def empty_table() -> CorrelationTable:
         correlation_threshold=5.5,
         num_observations=0,
         defocus_offsets=[-500.0, 0.0],
-        phi_theta_angles=[(0.0, 0.0)],
-        psi_angles=[0.0, 90.0],
+        euler_angles=[(0.0, 0.0, 0.0), (0.0, 0.0, 90.0)],
         search_index=[],
         x=[],
         y=[],
@@ -83,77 +75,6 @@ def empty_table() -> CorrelationTable:
         correlation_mean=[],
         correlation_variance=[],
     )
-
-
-# ---------------------------------------------------------------------------
-# derive_orientation_grid_from_full_angles
-# ---------------------------------------------------------------------------
-
-
-class TestDeriveOrientationGrid:
-    def test_basic_grid(self, grid_euler_angles):
-        phi_theta, psi = derive_orientation_grid_from_full_angles(grid_euler_angles)
-        assert phi_theta == [(0.0, 0.0), (45.0, 30.0)]
-        assert psi == [0.0, 90.0, 180.0]
-
-    def test_single_phi_theta(self):
-        angles = torch.tensor([[10.0, 20.0, 0.0], [10.0, 20.0, 45.0]])
-        phi_theta, psi = derive_orientation_grid_from_full_angles(angles)
-        assert phi_theta == [(10.0, 20.0)]
-        assert psi == [0.0, 45.0]
-
-    def test_single_psi(self):
-        angles = torch.tensor([[0.0, 0.0, 0.0], [45.0, 30.0, 0.0]])
-        phi_theta, psi = derive_orientation_grid_from_full_angles(angles)
-        assert phi_theta == [(0.0, 0.0), (45.0, 30.0)]
-        assert psi == [0.0]
-
-    def test_return_lengths_match_grid(self, grid_euler_angles):
-        phi_theta, psi = derive_orientation_grid_from_full_angles(grid_euler_angles)
-        assert len(phi_theta) * len(psi) == grid_euler_angles.shape[0]
-
-    def test_psi_outer_grid(self, psi_outer_euler_angles):
-        """The layout torch_so3 actually emits must be read, not mistaken for psi."""
-        phi_theta, psi = derive_orientation_grid_from_full_angles(
-            psi_outer_euler_angles
-        )
-        assert phi_theta == [(0.0, 0.0), (45.0, 30.0)]
-        assert psi == [0.0, 90.0, 180.0]
-
-    def test_real_orientation_search_config_grid(self):
-        """The grid a real config produces is psi-outer and must factor cleanly."""
-        config = OrientationSearchConfig(psi_step=30.0, theta_step=30.0)
-        angles = config.euler_angles.to(torch.float32)
-
-        phi_theta, psi = derive_orientation_grid_from_full_angles(angles)
-
-        assert phi_theta is not None and psi is not None
-        assert len(phi_theta) * len(psi) == angles.shape[0]
-        # A wrong layout guess collapses psi to one repeated value.
-        assert len(set(psi)) == len(psi)
-
-    def test_non_cartesian_returns_none(self):
-        """A subset search does not factor, so there are no axes to report."""
-        angles = torch.tensor(
-            [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 90.0],
-                [45.0, 30.0, 0.0],  # no (45, 30, 90) to complete the product
-            ]
-        )
-        assert derive_orientation_grid_from_full_angles(angles) == (None, None)
-
-    def test_scrambled_cartesian_returns_none(self):
-        """A full product in neither recognised order must not be guessed at."""
-        angles = torch.tensor(
-            [
-                [0.0, 0.0, 0.0],
-                [45.0, 30.0, 90.0],
-                [45.0, 30.0, 0.0],
-                [0.0, 0.0, 90.0],
-            ]
-        )
-        assert derive_orientation_grid_from_full_angles(angles) == (None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +118,7 @@ class TestDataFrameRoundtrip:
         assert df.attrs["correlation_threshold"] == minimal_table.correlation_threshold
         assert df.attrs["num_observations"] == minimal_table.num_observations
         assert df.attrs["defocus_offsets"] == minimal_table.defocus_offsets
-        assert df.attrs["psi_angles"] == minimal_table.psi_angles
+        assert df.attrs["euler_angles"] == minimal_table.euler_angles
 
     def test_roundtrip_detection_data(self, minimal_table):
         recovered = CorrelationTable.from_dataframe(minimal_table.to_dataframe())
@@ -214,8 +135,7 @@ class TestDataFrameRoundtrip:
     def test_roundtrip_search_space(self, minimal_table):
         recovered = CorrelationTable.from_dataframe(minimal_table.to_dataframe())
         assert recovered.defocus_offsets == minimal_table.defocus_offsets
-        assert recovered.phi_theta_angles == minimal_table.phi_theta_angles
-        assert recovered.psi_angles == minimal_table.psi_angles
+        assert recovered.euler_angles == minimal_table.euler_angles
 
     def test_row_count(self, minimal_table):
         df = minimal_table.to_dataframe()
@@ -257,11 +177,8 @@ class TestHDF5Roundtrip:
             assert recovered.defocus_offsets == pytest.approx(
                 minimal_table.defocus_offsets, abs=1e-5
             )
-            assert recovered.phi_theta_angles == pytest.approx(
-                minimal_table.phi_theta_angles, abs=1e-5
-            )
-            assert recovered.psi_angles == pytest.approx(
-                minimal_table.psi_angles, abs=1e-5
+            assert recovered.euler_angles == pytest.approx(
+                minimal_table.euler_angles, abs=1e-5
             )
         finally:
             os.unlink(path)
@@ -331,10 +248,9 @@ def factory_inputs(grid_euler_angles):
 
 
 class TestFromMatchTemplateResults:
-    def test_search_space_derivation(self, factory_inputs):
+    def test_euler_angles_stored_verbatim(self, factory_inputs, grid_euler_angles):
         ct = CorrelationTable.from_match_template_results(**factory_inputs)
-        assert ct.phi_theta_angles == [(0.0, 0.0), (45.0, 30.0)]
-        assert ct.psi_angles == [0.0, 90.0, 180.0]
+        assert ct.euler_angles == [tuple(row) for row in grid_euler_angles.tolist()]
         assert ct.defocus_offsets == pytest.approx([-500.0, 0.0, 500.0])
 
     def test_num_observations(self, factory_inputs):
@@ -405,17 +321,12 @@ class TestEulerAnglesAlwaysStored:
         assert ct.euler_angles == [
             tuple(row) for row in psi_outer_euler_angles.tolist()
         ]
-        # The factored axes are still derived, and describe the same grid.
-        assert ct.phi_theta_angles == [(0.0, 0.0), (45.0, 30.0)]
-        assert ct.psi_angles == [0.0, 90.0, 180.0]
 
     def test_stored_for_a_non_factorable_search(self, factory_inputs):
-        """A constrained search stores its angles; only the summary is dropped."""
+        """A constrained search still stores its angles verbatim."""
         angles = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, 90.0], [45.0, 30.0, 0.0]])
         ct = self._table(factory_inputs, angles)
         assert ct.euler_angles == [tuple(row) for row in angles.tolist()]
-        assert ct.phi_theta_angles is None
-        assert ct.psi_angles is None
 
     @pytest.mark.parametrize(
         "fixture_name", ["grid_euler_angles", "psi_outer_euler_angles"]
@@ -423,11 +334,7 @@ class TestEulerAnglesAlwaysStored:
     def test_search_index_decodes_regardless_of_layout(
         self, request, factory_inputs, fixture_name
     ):
-        """Indexing the stored angles recovers the orientation the backend used.
-
-        This is the property the factored axes cannot provide: which of (phi, theta)
-        and psi varies fastest is not recoverable from the two axes alone.
-        """
+        """Indexing the stored angles recovers the orientation the backend used."""
         angles = request.getfixturevalue(fixture_name)
         ct = self._table(factory_inputs, angles)
 
@@ -446,9 +353,6 @@ class TestEulerAnglesAlwaysStored:
             ct.to_hdf5(path)
             recovered = CorrelationTable.from_hdf5(path)
             assert recovered.euler_angles == pytest.approx(ct.euler_angles, abs=1e-5)
-            assert recovered.phi_theta_angles == pytest.approx(
-                ct.phi_theta_angles, abs=1e-5
-            )
         finally:
             os.unlink(path)
 
@@ -459,17 +363,25 @@ class TestEulerAnglesAlwaysStored:
         recovered = CorrelationTable.from_dataframe(ct.to_dataframe())
         assert recovered.euler_angles == ct.euler_angles
 
-    def test_hdf5_without_euler_angles_still_loads(self, minimal_table):
+    def test_hdf5_without_euler_angles_still_loads(self):
         """Tables written before the full angle list existed remain readable."""
-        assert minimal_table.euler_angles is None
+        table = CorrelationTable(
+            correlation_threshold=5.5,
+            num_observations=1,
+            defocus_offsets=[0.0],
+            euler_angles=None,
+            search_index=[0],
+            x=[10],
+            y=[15],
+            correlation_value=[6.1],
+            correlation_mean=[0.1],
+            correlation_variance=[0.5],
+        )
         with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
             path = f.name
         try:
-            minimal_table.to_hdf5(path)
+            table.to_hdf5(path)
             recovered = CorrelationTable.from_hdf5(path)
             assert recovered.euler_angles is None
-            assert recovered.psi_angles == pytest.approx(
-                minimal_table.psi_angles, abs=1e-5
-            )
         finally:
             os.unlink(path)
