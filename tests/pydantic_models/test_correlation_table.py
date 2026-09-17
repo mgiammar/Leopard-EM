@@ -6,6 +6,9 @@ import tempfile
 import pytest
 import torch
 
+from leopard_em.pydantic_models.config.orientation_search import (
+    OrientationSearchConfig,
+)
 from leopard_em.pydantic_models.results.correlation_table import (
     CorrelationTable,
     derive_orientation_grid_from_full_angles,
@@ -26,6 +29,21 @@ def grid_euler_angles() -> torch.Tensor:
             [0.0, 0.0, 180.0],
             [45.0, 30.0, 0.0],
             [45.0, 30.0, 90.0],
+            [45.0, 30.0, 180.0],
+        ]
+    )
+
+
+@pytest.fixture()
+def psi_outer_euler_angles() -> torch.Tensor:
+    """The same 6 orientations in the order ``torch_so3`` emits: psi varies slowest."""
+    return torch.tensor(
+        [
+            [0.0, 0.0, 0.0],
+            [45.0, 30.0, 0.0],
+            [0.0, 0.0, 90.0],
+            [45.0, 30.0, 90.0],
+            [0.0, 0.0, 180.0],
             [45.0, 30.0, 180.0],
         ]
     )
@@ -93,6 +111,49 @@ class TestDeriveOrientationGrid:
     def test_return_lengths_match_grid(self, grid_euler_angles):
         phi_theta, psi = derive_orientation_grid_from_full_angles(grid_euler_angles)
         assert len(phi_theta) * len(psi) == grid_euler_angles.shape[0]
+
+    def test_psi_outer_grid(self, psi_outer_euler_angles):
+        """The layout torch_so3 actually emits must be read, not mistaken for psi."""
+        phi_theta, psi = derive_orientation_grid_from_full_angles(
+            psi_outer_euler_angles
+        )
+        assert phi_theta == [(0.0, 0.0), (45.0, 30.0)]
+        assert psi == [0.0, 90.0, 180.0]
+
+    def test_real_orientation_search_config_grid(self):
+        """The grid a real config produces is psi-outer and must factor cleanly."""
+        config = OrientationSearchConfig(psi_step=30.0, theta_step=30.0)
+        angles = config.euler_angles.to(torch.float32)
+
+        phi_theta, psi = derive_orientation_grid_from_full_angles(angles)
+
+        assert phi_theta is not None and psi is not None
+        assert len(phi_theta) * len(psi) == angles.shape[0]
+        # A wrong layout guess collapses psi to one repeated value.
+        assert len(set(psi)) == len(psi)
+
+    def test_non_cartesian_returns_none(self):
+        """A subset search does not factor, so there are no axes to report."""
+        angles = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 90.0],
+                [45.0, 30.0, 0.0],  # no (45, 30, 90) to complete the product
+            ]
+        )
+        assert derive_orientation_grid_from_full_angles(angles) == (None, None)
+
+    def test_scrambled_cartesian_returns_none(self):
+        """A full product in neither recognised order must not be guessed at."""
+        angles = torch.tensor(
+            [
+                [0.0, 0.0, 0.0],
+                [45.0, 30.0, 90.0],
+                [45.0, 30.0, 0.0],
+                [0.0, 0.0, 90.0],
+            ]
+        )
+        assert derive_orientation_grid_from_full_angles(angles) == (None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -320,3 +381,95 @@ class TestFromMatchTemplateResults:
         assert ct.num_observations == 0
         assert ct.correlation_mean == []
         assert ct.correlation_variance == []
+
+
+# ---------------------------------------------------------------------------
+# The full angle list is the authoritative record of the search
+# ---------------------------------------------------------------------------
+
+
+class TestEulerAnglesAlwaysStored:
+    """Whatever the layout, the orientations are recorded verbatim."""
+
+    def _table(self, factory_inputs, euler_angles):
+        return CorrelationTable.from_match_template_results(
+            **{**factory_inputs, "euler_angles": euler_angles}
+        )
+
+    def test_stored_for_a_factorable_grid(self, factory_inputs, grid_euler_angles):
+        ct = self._table(factory_inputs, grid_euler_angles)
+        assert ct.euler_angles == [tuple(row) for row in grid_euler_angles.tolist()]
+
+    def test_stored_for_a_psi_outer_grid(self, factory_inputs, psi_outer_euler_angles):
+        ct = self._table(factory_inputs, psi_outer_euler_angles)
+        assert ct.euler_angles == [
+            tuple(row) for row in psi_outer_euler_angles.tolist()
+        ]
+        # The factored axes are still derived, and describe the same grid.
+        assert ct.phi_theta_angles == [(0.0, 0.0), (45.0, 30.0)]
+        assert ct.psi_angles == [0.0, 90.0, 180.0]
+
+    def test_stored_for_a_non_factorable_search(self, factory_inputs):
+        """A constrained search stores its angles; only the summary is dropped."""
+        angles = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, 90.0], [45.0, 30.0, 0.0]])
+        ct = self._table(factory_inputs, angles)
+        assert ct.euler_angles == [tuple(row) for row in angles.tolist()]
+        assert ct.phi_theta_angles is None
+        assert ct.psi_angles is None
+
+    @pytest.mark.parametrize(
+        "fixture_name", ["grid_euler_angles", "psi_outer_euler_angles"]
+    )
+    def test_search_index_decodes_regardless_of_layout(
+        self, request, factory_inputs, fixture_name
+    ):
+        """Indexing the stored angles recovers the orientation the backend used.
+
+        This is the property the factored axes cannot provide: which of (phi, theta)
+        and psi varies fastest is not recoverable from the two axes alone.
+        """
+        angles = request.getfixturevalue(fixture_name)
+        ct = self._table(factory_inputs, angles)
+
+        num_orientations = len(ct.euler_angles)
+        for search_index in ct.search_index:
+            expected = tuple(angles[search_index % num_orientations].tolist())
+            assert ct.euler_angles[search_index % num_orientations] == expected
+
+    def test_hdf5_roundtrip_preserves_order(
+        self, factory_inputs, psi_outer_euler_angles
+    ):
+        ct = self._table(factory_inputs, psi_outer_euler_angles)
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path = f.name
+        try:
+            ct.to_hdf5(path)
+            recovered = CorrelationTable.from_hdf5(path)
+            assert recovered.euler_angles == pytest.approx(ct.euler_angles, abs=1e-5)
+            assert recovered.phi_theta_angles == pytest.approx(
+                ct.phi_theta_angles, abs=1e-5
+            )
+        finally:
+            os.unlink(path)
+
+    def test_dataframe_roundtrip_preserves_order(
+        self, factory_inputs, psi_outer_euler_angles
+    ):
+        ct = self._table(factory_inputs, psi_outer_euler_angles)
+        recovered = CorrelationTable.from_dataframe(ct.to_dataframe())
+        assert recovered.euler_angles == ct.euler_angles
+
+    def test_hdf5_without_euler_angles_still_loads(self, minimal_table):
+        """Tables written before the full angle list existed remain readable."""
+        assert minimal_table.euler_angles is None
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path = f.name
+        try:
+            minimal_table.to_hdf5(path)
+            recovered = CorrelationTable.from_hdf5(path)
+            assert recovered.euler_angles is None
+            assert recovered.psi_angles == pytest.approx(
+                minimal_table.psi_angles, abs=1e-5
+            )
+        finally:
+            os.unlink(path)
