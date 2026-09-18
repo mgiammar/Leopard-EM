@@ -102,7 +102,8 @@ class FastFFTPaddingConfig(BaseModel2DTM):
         Raises
         ------
         ValueError
-            If ``target_shape`` is smaller than the image in either dimension.
+            If ``target_shape`` is smaller than the image in either dimension, or is odd
+            on RFFT dimension.
         """
         if not self.enabled:
             return FFTPaddingPlan(
@@ -121,6 +122,11 @@ class FastFFTPaddingConfig(BaseModel2DTM):
                 raise ValueError(
                     f"Configured 'target_shape' {padded_shape} is smaller than the "
                     f"image shape {image_shape}."
+                )
+            if padded_shape[1] % 2 != 0:
+                raise ValueError(
+                    f"Configured 'target_shape' {padded_shape} must be even on last "
+                    f"dimensions for the backend's real-FFT shape conventions."
                 )
         else:
             padded_shape, effective_backend = self._automatic_padded_shape(

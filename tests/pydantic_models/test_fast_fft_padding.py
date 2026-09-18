@@ -68,6 +68,12 @@ def test_target_shape_smaller_than_image_is_rejected():
         config.make_plan((4000, 4000), TEMPLATE_SHAPE, "streamed")
 
 
+def test_odd_target_shape_is_rejected():
+    config = FastFFTPaddingConfig(target_shape=[5000, 5001])
+    with pytest.raises(ValueError, match="must be even"):
+        config.make_plan((4000, 4000), TEMPLATE_SHAPE, "streamed")
+
+
 def test_target_shape_must_have_two_entries():
     with pytest.raises(ValueError):
         FastFFTPaddingConfig(target_shape=[4096])
