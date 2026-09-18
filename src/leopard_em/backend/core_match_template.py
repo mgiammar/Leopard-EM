@@ -33,7 +33,7 @@ from leopard_em.backend.process_results import (
 from leopard_em.backend.utils import do_iteration_and_correlation_table_updates
 
 DEFAULT_STATISTIC_DTYPE = torch.float32
-CORRELATION_TABLE_THRESHOLD = 5.5
+CORRELATION_TABLE_THRESHOLD = 6.25  # approx 85,000 entries at 20.8 million search size
 
 # Turn off gradient calculations by default
 torch.set_grad_enabled(False)
