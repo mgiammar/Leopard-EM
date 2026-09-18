@@ -10,6 +10,7 @@ from leopard_em.pydantic_models.results import (
     MatchTemplateResultHDF5,
     MatchTemplateResultMRC,
 )
+from leopard_em.pydantic_models.results.correlation_table import CorrelationTable
 
 MRC_PATH_FIELDS = (
     "mip_path",
@@ -57,6 +58,44 @@ class TestCorrelationTablePathValidated:
     def test_unset_path_is_allowed(self, tmp_path):
         result = MatchTemplateResultHDF5(hdf5_path=str(tmp_path / "out.h5"))
         assert result.correlation_table_path is None
+
+
+def _minimal_correlation_table() -> CorrelationTable:
+    return CorrelationTable(
+        correlation_threshold=5.5,
+        num_observations=0,
+        defocus_offsets=[0.0],
+        euler_angles=[(0.0, 0.0, 0.0)],
+        search_index=[],
+        x=[],
+        y=[],
+        correlation_value=[],
+        correlation_mean=[],
+        correlation_variance=[],
+    )
+
+
+class TestCorrelationTablePathReassignmentBypass:
+    """Assigning correlation_table_path post-construction skips pydantic validation."""
+
+    def test_export_rejects_path_assigned_after_construction(
+        self, tmp_path, existing_file
+    ):
+        result = MatchTemplateResultHDF5(hdf5_path=str(tmp_path / "out.h5"))
+        result.correlation_table_path = existing_file
+        result.correlation_table = _minimal_correlation_table()
+
+        with pytest.raises(ValueError, match="already exists"):
+            result.export_correlation_table()
+
+    def test_export_succeeds_when_overwrite_allowed(self, tmp_path, existing_file):
+        result = MatchTemplateResultHDF5(
+            hdf5_path=str(tmp_path / "out.h5"), allow_file_overwrite=True
+        )
+        result.correlation_table_path = existing_file
+        result.correlation_table = _minimal_correlation_table()
+
+        result.export_correlation_table()
 
 
 class TestManagersCheckOutputPathBeforeCompute:
