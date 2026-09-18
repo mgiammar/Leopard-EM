@@ -541,10 +541,13 @@ def do_batched_orientation_cross_correlate_zipfft(
 
     # Accounting for RFFT shape
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
+    # NOTE: 'image_dft' is pre-transposed to (W // 2 + 1, H) for the zipFFT kernel's
+    # memory layout only; it is not a semantic transpose of the image, so the (H, W)
+    # real-space shape below must swap the axes back to recover true (rows, cols).
     image_shape_real = (
-        image_dft.shape[0] * 2 - 2,
         image_dft.shape[1],
-    )  # NOTE: transposed
+        image_dft.shape[0] * 2 - 2,
+    )
 
     num_orientations = rotation_matrices.shape[0]
     num_Cs = projective_filters.shape[0]  # pylint: disable=invalid-name
