@@ -300,7 +300,10 @@ class CorrelationTable(BaseModel2DTM):
             num_observations=num_observations,
             defocus_offsets=defocus_values.tolist(),
             # Recorded verbatim: this is what makes search_index decodable.
-            euler_angles=[(float(p), float(t), float(s)) for p, t, s in euler_angles],
+            # `.tolist()` converts the whole tensor in one C call; row-by-row
+            # `float()` conversion is over an order of magnitude slower on the
+            # full search grid (1M+ orientations).
+            euler_angles=[tuple(row) for row in euler_angles.tolist()],
             search_index=search_index,
             x=list(pos_x),
             y=list(pos_y),
