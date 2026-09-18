@@ -194,7 +194,7 @@ fast_fft_padding:
 ```
 
 Padding is added only to the **bottom and right** of the image and is filled with Gaussian noise whose mean and standard deviation match the micrograph's.
-Results are automatically un-padded upon return from the backend; padding is invisible to the end-user and does should not affect the results of the match template search.
+Results are automatically un-padded upon return from the backend; padding is invisible to the end-user and should not affect the results of the match template search.
 
 ### Choosing a cross-correlation backend
 

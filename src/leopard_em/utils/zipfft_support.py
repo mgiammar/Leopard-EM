@@ -10,10 +10,10 @@ from functools import cache
 __all__ = [
     "ZIPFFT_AVAILABLE",
     "ZIPFFT_SUPPORTED_CONFIGS",
+    "snap_image_shape_to_zipfft",
     "zipfft",
     "zipfft_supported_batch_sizes",
     "zipfft_supported_image_shapes",
-    "snap_image_shape_to_zipfft",
 ]
 
 try:
