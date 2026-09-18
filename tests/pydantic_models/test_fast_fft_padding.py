@@ -95,8 +95,10 @@ def test_zipfft_backend_falls_back_when_library_absent():
         pytest.skip("zipfft is installed; fallback path not exercised")
 
     config = FastFFTPaddingConfig()
-    plan = config.make_plan((4000, 4000), TEMPLATE_SHAPE, "zipfft")
+    with pytest.warns(FFTPaddingWarning):
+        plan = config.make_plan((4000, 4000), TEMPLATE_SHAPE, "zipfft")
     assert plan.padded_shape == (4096, 4096)
+    assert plan.effective_backend == "batched"
 
 
 def test_yaml_round_trip(tmp_path):

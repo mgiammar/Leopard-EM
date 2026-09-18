@@ -484,6 +484,11 @@ def core_match_template_distributed(
     dist.broadcast_object_list(valid_shape_list, src=0)
     unpadded_valid_shape = valid_shape_list[0]
 
+    # Broadcast backend from rank zero; only rank zero does fallback checking for zipfft
+    backend_list: list[str] = [backend]
+    dist.broadcast_object_list(backend_list, src=0)
+    backend = backend_list[0]
+
     ##############################################################
     ### Pre-multiply the whitening filter with the CTF filters ###
     ##############################################################

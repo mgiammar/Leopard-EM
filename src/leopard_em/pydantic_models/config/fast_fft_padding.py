@@ -110,9 +110,11 @@ class FastFFTPaddingConfig(BaseModel2DTM):
                 padded_shape=image_shape,
                 template_shape=template_shape,
                 noise_seed=self.noise_seed,
+                effective_backend=backend,
             )
 
-        # Ensure padded shape is at leas as large as the image
+        effective_backend = backend
+        # Ensure padded shape is at least as large as the image
         if self.target_shape is not None:
             padded_shape = (int(self.target_shape[0]), int(self.target_shape[1]))
             if padded_shape[0] < image_shape[0] or padded_shape[1] < image_shape[1]:
@@ -121,7 +123,7 @@ class FastFFTPaddingConfig(BaseModel2DTM):
                     f"image shape {image_shape}."
                 )
         else:
-            padded_shape = self._automatic_padded_shape(
+            padded_shape, effective_backend = self._automatic_padded_shape(
                 image_shape, template_shape, backend
             )
 
@@ -130,6 +132,7 @@ class FastFFTPaddingConfig(BaseModel2DTM):
             padded_shape=padded_shape,
             template_shape=template_shape,
             noise_seed=self.noise_seed,
+            effective_backend=effective_backend,
         )
 
         self._warn_if_padding_large(plan)
@@ -141,27 +144,30 @@ class FastFFTPaddingConfig(BaseModel2DTM):
         image_shape: tuple[int, int],
         template_shape: tuple[int, int],
         backend: str,
-    ) -> tuple[int, int]:
-        """Select a padded shape, preferring a compiled zipFFT shape when relevant."""
+    ) -> tuple[tuple[int, int], str]:
+        """Select a padded shape and backend, preferring a compiled zipFFT shape."""
         factors = tuple(self.allowed_factors)
 
-        if backend == "zipfft" and ZIPFFT_AVAILABLE:
+        if backend != "zipfft":
+            return next_even_fft_shape(image_shape, factors), backend
+
+        if ZIPFFT_AVAILABLE:
             snapped = snap_image_shape_to_zipfft(image_shape, template_shape)
             if snapped is not None:
-                return snapped
+                return snapped, backend
 
-            warnings.warn(
-                f"No compiled zipFFT configuration fits an image of shape "
-                f"{image_shape} with a {template_shape} template, so the image will "
-                f"be padded to the next fast FFT size instead. The 'zipfft' backend "
-                f"cannot run at that size; compile additional zipFFT shapes, set "
-                f"'fast_fft_padding.target_shape' explicitly, or choose another "
-                f"backend.",
-                FFTPaddingWarning,
-                stacklevel=3,
-            )
+        warnings.warn(
+            f"The 'zipfft' backend cannot run an image of shape {image_shape} with "
+            f"a {template_shape} template (no compiled configuration fits, or "
+            f"zipFFT is not installed), so cross-correlation will fall back to the "
+            f"'batched' backend at the next fast FFT size. Compile additional "
+            f"zipFFT shapes or set 'fast_fft_padding.target_shape' explicitly to "
+            f"keep using zipFFT.",
+            FFTPaddingWarning,
+            stacklevel=3,
+        )
 
-        return next_even_fft_shape(image_shape, factors)
+        return next_even_fft_shape(image_shape, factors), "batched"
 
     def _warn_if_padding_large(self, plan: FFTPaddingPlan) -> None:
         """Warn when padding grows the image enough to matter for GPU memory."""

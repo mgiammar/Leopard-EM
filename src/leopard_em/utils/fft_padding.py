@@ -194,6 +194,9 @@ class FFTPaddingPlan:
         Real-space ``(h, w)`` of a single template projection.
     noise_seed : int
         Seed for the Gaussian fill, so a plan fully reproduces a padded image.
+    effective_backend : str
+        Cross-correlation backend. Typically the requested backend, but for "zipfft" may
+        fall back to PyTorch "streamed" if no supported image shape exists.
 
     Methods
     -------
@@ -207,6 +210,7 @@ class FFTPaddingPlan:
     padded_shape: tuple[int, int]
     template_shape: tuple[int, int]
     noise_seed: int = 0
+    effective_backend: str = "streamed"
 
     def __post_init__(self) -> None:
         """Validate that the recorded shapes are mutually consistent."""

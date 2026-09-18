@@ -371,7 +371,7 @@ class MatchTemplateManager(BaseModel2DTM):
             **core_kwargs,
             orientation_batch_size=orientation_batch_size,
             num_cuda_streams=self.computational_config.num_cpus,
-            backend=self.computational_config.backend,
+            backend=self._resolved_backend(),
             compute_correlation_table=compute_correlation_table,
             unpadded_valid_shape=self._unpadded_valid_shape(),
         )
@@ -444,7 +444,7 @@ class MatchTemplateManager(BaseModel2DTM):
             device,
             orientation_batch_size,
             self.computational_config.num_cpus,
-            self.computational_config.backend,
+            self._resolved_backend(),
             compute_correlation_table=compute_correlation_table,
             unpadded_valid_shape=self._unpadded_valid_shape(),
             **core_kwargs,
@@ -458,6 +458,20 @@ class MatchTemplateManager(BaseModel2DTM):
                 euler_angles=core_kwargs["euler_angles"],
                 do_result_export=do_result_export,
             )
+
+    def _resolved_backend(self) -> str:
+        """Backend to actually run, honoring any zipFFT fallback from padding.
+
+        Returns
+        -------
+        str
+            ``self.computational_config.backend``, unless the padding plan fell back
+            away from ``"zipfft"`` because no compiled shape fit the image.
+        """
+        plan = self._fft_padding_plan
+        if plan is None:
+            return self.computational_config.backend
+        return plan.effective_backend
 
     def _unpadded_valid_shape(self) -> tuple[int, int] | None:
         """Valid correlation shape to request from the backend, if padding is active.
