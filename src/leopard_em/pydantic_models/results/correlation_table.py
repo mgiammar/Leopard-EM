@@ -126,7 +126,7 @@ class CorrelationTable(BaseModel2DTM):
             correlation_variance=df["correlation_variance"].tolist(),
         )
 
-    def to_hdf5(self, file_path: str) -> None:
+    def to_hdf5(self, file_path: str, compress: bool = True) -> None:
         """Write this CorrelationTable to an HDF5 file.
 
         Layout::
@@ -134,7 +134,8 @@ class CorrelationTable(BaseModel2DTM):
             /metadata              (attrs: correlation_threshold, num_observations)
             /search_space/
                 defocus_offsets    float32 1-D
-                euler_angles       float32 (num_orientations, 3)
+                euler_angles       float32 (num_orientations, 3), gzip-4 + shuffle
+                                   (if compress=True)
             /detections/
                 search_index       int32 1-D
                 x                  int32 1-D
@@ -147,7 +148,15 @@ class CorrelationTable(BaseModel2DTM):
         ----------
         file_path : str
             Destination HDF5 file path.
+        compress : bool
+            Whether to gzip-4 + byte-shuffle the ``euler_angles`` dataset.
         """
+        compression_kwargs: dict = (
+            {"compression": "gzip", "compression_opts": 4, "shuffle": True}
+            if compress
+            else {}
+        )
+
         with h5py.File(file_path, "w") as f:
             meta = f.create_group("metadata")
             meta.attrs["correlation_threshold"] = self.correlation_threshold
@@ -162,6 +171,7 @@ class CorrelationTable(BaseModel2DTM):
                 search_space.create_dataset(
                     "euler_angles",
                     data=np.array(self.euler_angles, dtype=np.float32),
+                    **compression_kwargs,
                 )
 
             detections = f.create_group("detections")

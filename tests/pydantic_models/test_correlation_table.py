@@ -221,6 +221,83 @@ class TestHDF5Roundtrip:
                 os.unlink(path)
 
 
+class TestHDF5Compression:
+    """euler_angles is the only dataset large enough for compression to matter."""
+
+    @pytest.fixture()
+    def large_table(self) -> CorrelationTable:
+        """A table with a big, repetitive (and thus compressible) euler_angles grid."""
+        n_phi_theta = 2000
+        psi_values = [0.0, 90.0, 180.0, 270.0]
+        phi_theta = [(float(i % 360), float((i * 7) % 180)) for i in range(n_phi_theta)]
+        euler_angles = [
+            (phi, theta, psi) for psi in psi_values for phi, theta in phi_theta
+        ]
+        return CorrelationTable(
+            correlation_threshold=5.5,
+            num_observations=0,
+            defocus_offsets=[0.0],
+            euler_angles=euler_angles,
+            search_index=[],
+            x=[],
+            y=[],
+            correlation_value=[],
+            correlation_mean=[],
+            correlation_variance=[],
+        )
+
+    def test_compress_defaults_to_true(self, large_table):
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path = f.name
+        try:
+            large_table.to_hdf5(path)
+            with h5py.File(path, "r") as f:
+                ds = f["search_space/euler_angles"]
+                assert ds.compression == "gzip"
+                assert ds.compression_opts == 4
+                assert ds.shuffle is True
+        finally:
+            os.unlink(path)
+
+    def test_compress_true_is_smaller_than_uncompressed(self, large_table):
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path_compressed = f.name
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path_uncompressed = f.name
+        try:
+            large_table.to_hdf5(path_compressed, compress=True)
+            large_table.to_hdf5(path_uncompressed, compress=False)
+            assert os.path.getsize(path_compressed) < os.path.getsize(path_uncompressed)
+        finally:
+            os.unlink(path_compressed)
+            os.unlink(path_uncompressed)
+
+    def test_compress_false_disables_filters(self, large_table):
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path = f.name
+        try:
+            large_table.to_hdf5(path, compress=False)
+            with h5py.File(path, "r") as f:
+                ds = f["search_space/euler_angles"]
+                assert ds.compression is None
+                assert ds.shuffle is False
+        finally:
+            os.unlink(path)
+
+    def test_roundtrip_preserved_regardless_of_compression(self, large_table):
+        for compress in (True, False):
+            with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+                path = f.name
+            try:
+                large_table.to_hdf5(path, compress=compress)
+                recovered = CorrelationTable.from_hdf5(path)
+                assert recovered.euler_angles == pytest.approx(
+                    large_table.euler_angles, abs=1e-4
+                )
+            finally:
+                os.unlink(path)
+
+
 # ---------------------------------------------------------------------------
 # from_match_template_results factory
 # ---------------------------------------------------------------------------
