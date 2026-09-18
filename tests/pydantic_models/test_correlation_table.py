@@ -3,6 +3,8 @@
 import os
 import tempfile
 
+import h5py
+import numpy as np
 import pytest
 import torch
 
@@ -380,6 +382,85 @@ class TestEulerAnglesAlwaysStored:
         with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
             path = f.name
         try:
+            table.to_hdf5(path)
+            recovered = CorrelationTable.from_hdf5(path)
+            assert recovered.euler_angles is None
+        finally:
+            os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# Legacy (pre-euler_angles) v1.3 files: reconstruct euler_angles on load
+# ---------------------------------------------------------------------------
+
+
+def _write_legacy_v1_3_hdf5(
+    path: str, phi_theta_angles: list, psi_angles: list
+) -> None:
+    """Write a v1.3-style file with phi_theta_angles/psi_angles but no euler_angles."""
+    with h5py.File(path, "w") as f:
+        meta = f.create_group("metadata")
+        meta.attrs["correlation_threshold"] = 5.5
+        meta.attrs["num_observations"] = 1
+
+        search_space = f.create_group("search_space")
+        search_space.create_dataset(
+            "defocus_offsets", data=np.array([0.0], dtype=np.float32)
+        )
+        search_space.create_dataset(
+            "phi_theta_angles",
+            data=np.array(phi_theta_angles, dtype=np.float32),
+        )
+        search_space.create_dataset(
+            "psi_angles", data=np.array(psi_angles, dtype=np.float32)
+        )
+
+        detections = f.create_group("detections")
+        detections.create_dataset("search_index", data=np.array([0], dtype=np.int32))
+        detections.create_dataset("x", data=np.array([10], dtype=np.int32))
+        detections.create_dataset("y", data=np.array([15], dtype=np.int32))
+        detections.create_dataset(
+            "correlation_value", data=np.array([6.1], dtype=np.float32)
+        )
+        detections.create_dataset(
+            "correlation_mean", data=np.array([0.1], dtype=np.float32)
+        )
+        detections.create_dataset(
+            "correlation_variance", data=np.array([0.5], dtype=np.float32)
+        )
+
+
+class TestLegacyFileReconstruction:
+    """A pre-euler_angles v1.3 file has its full grid rebuilt from the two axes."""
+
+    def test_reconstructs_psi_outer_cartesian_product(self):
+        """torch_so3 always emits psi-outer order, so that's the order to rebuild."""
+        phi_theta_angles = [(0.0, 0.0), (45.0, 30.0)]
+        psi_angles = [0.0, 90.0, 180.0]
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path = f.name
+        try:
+            _write_legacy_v1_3_hdf5(path, phi_theta_angles, psi_angles)
+            recovered = CorrelationTable.from_hdf5(path)
+            assert recovered.euler_angles == pytest.approx(
+                [
+                    (0.0, 0.0, 0.0),
+                    (45.0, 30.0, 0.0),
+                    (0.0, 0.0, 90.0),
+                    (45.0, 30.0, 90.0),
+                    (0.0, 0.0, 180.0),
+                    (45.0, 30.0, 180.0),
+                ]
+            )
+        finally:
+            os.unlink(path)
+
+    def test_file_with_neither_axis_still_loads(self, minimal_table):
+        """A file with no orientation datasets at all has no grid to reconstruct."""
+        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
+            path = f.name
+        try:
+            table = minimal_table.model_copy(update={"euler_angles": None})
             table.to_hdf5(path)
             recovered = CorrelationTable.from_hdf5(path)
             assert recovered.euler_angles is None

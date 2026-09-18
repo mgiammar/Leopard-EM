@@ -24,9 +24,7 @@ class CorrelationTable(BaseModel2DTM):
     euler_angles : list[tuple[float, float, float]] | None
         Every orientation searched, shape (num_orientations, 3), as ZYZ Euler angles
         in degrees and in the exact order the search used them. These angles describe
-        passive rotations. This is what makes `search_index` decodable, and it is
-        written for every new table; it is `None` only for tables read back from files
-        written before it existed.
+        passive rotations.
     search_index : list[int]
         Global search index identifying the defocus offset and orientation of each
         detection, as `defocus_index * num_orientations + orientation_index`. Length
@@ -198,6 +196,12 @@ class CorrelationTable(BaseModel2DTM):
         Returns
         -------
         CorrelationTable
+
+        Notes
+        -----
+        Files written with only ``phi_theta_angles`` and ``psi_angles`` (development and
+        v1.3 exactly format) automatically get unpacked into full ZYZ Euler angles under
+        ``euler_angles``. The order of the angles is preserved.
         """
         with h5py.File(file_path, "r") as f:
             correlation_threshold = float(f["metadata"].attrs["correlation_threshold"])
@@ -208,6 +212,14 @@ class CorrelationTable(BaseModel2DTM):
             full_angles = None
             if "euler_angles" in search_space:
                 full_angles = search_space["euler_angles"][:].tolist()
+            elif "phi_theta_angles" in search_space and "psi_angles" in search_space:
+                phi_theta_angles = search_space["phi_theta_angles"][:].tolist()
+                psi_angles = search_space["psi_angles"][:].tolist()
+                full_angles = [
+                    (phi, theta, psi)
+                    for psi in psi_angles
+                    for phi, theta in phi_theta_angles
+                ]
 
             search_index = f["detections/search_index"][:].tolist()
             x = f["detections/x"][:].tolist()
