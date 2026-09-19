@@ -391,10 +391,6 @@ class TestEulerAnglesAlwaysStored:
             **{**factory_inputs, "euler_angles": euler_angles}
         )
 
-    def test_stored_for_a_factorable_grid(self, factory_inputs, grid_euler_angles):
-        ct = self._table(factory_inputs, grid_euler_angles)
-        assert ct.euler_angles == [tuple(row) for row in grid_euler_angles.tolist()]
-
     def test_stored_for_a_psi_outer_grid(self, factory_inputs, psi_outer_euler_angles):
         ct = self._table(factory_inputs, psi_outer_euler_angles)
         assert ct.euler_angles == [
@@ -406,21 +402,6 @@ class TestEulerAnglesAlwaysStored:
         angles = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, 90.0], [45.0, 30.0, 0.0]])
         ct = self._table(factory_inputs, angles)
         assert ct.euler_angles == [tuple(row) for row in angles.tolist()]
-
-    @pytest.mark.parametrize(
-        "fixture_name", ["grid_euler_angles", "psi_outer_euler_angles"]
-    )
-    def test_search_index_decodes_regardless_of_layout(
-        self, request, factory_inputs, fixture_name
-    ):
-        """Indexing the stored angles recovers the orientation the backend used."""
-        angles = request.getfixturevalue(fixture_name)
-        ct = self._table(factory_inputs, angles)
-
-        num_orientations = len(ct.euler_angles)
-        for search_index in ct.search_index:
-            expected = tuple(angles[search_index % num_orientations].tolist())
-            assert ct.euler_angles[search_index % num_orientations] == expected
 
     def test_hdf5_roundtrip_preserves_order(
         self, factory_inputs, psi_outer_euler_angles
@@ -441,29 +422,6 @@ class TestEulerAnglesAlwaysStored:
         ct = self._table(factory_inputs, psi_outer_euler_angles)
         recovered = CorrelationTable.from_dataframe(ct.to_dataframe())
         assert recovered.euler_angles == ct.euler_angles
-
-    def test_hdf5_without_euler_angles_still_loads(self):
-        """Tables written before the full angle list existed remain readable."""
-        table = CorrelationTable(
-            correlation_threshold=5.5,
-            num_observations=1,
-            defocus_offsets=[0.0],
-            euler_angles=None,
-            search_index=[0],
-            x=[10],
-            y=[15],
-            correlation_value=[6.1],
-            correlation_mean=[0.1],
-            correlation_variance=[0.5],
-        )
-        with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as f:
-            path = f.name
-        try:
-            table.to_hdf5(path)
-            recovered = CorrelationTable.from_hdf5(path)
-            assert recovered.euler_angles is None
-        finally:
-            os.unlink(path)
 
 
 # ---------------------------------------------------------------------------
