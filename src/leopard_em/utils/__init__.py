@@ -5,6 +5,7 @@ from .ctf_utils import calculate_ctf_filter_stack
 from .data_io import (
     load_mrc_image,
     load_mrc_volume,
+    load_result_map_image,
     load_template_tensor,
     read_mrc_to_numpy,
     read_mrc_to_tensor,
@@ -31,6 +32,7 @@ __all__ = [
     "write_mrc_from_tensor",
     "load_mrc_image",
     "load_mrc_volume",
+    "load_result_map_image",
     "load_template_tensor",
     # Fourier slice
     "volume_to_rfft_fourier_slice",

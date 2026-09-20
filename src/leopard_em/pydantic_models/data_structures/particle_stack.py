@@ -43,8 +43,9 @@ from leopard_em.pydantic_models.custom_types import (
 from leopard_em.pydantic_models.formats import (
     MATCH_TEMPLATE_DF_COLUMN_ORDER,
     STATISTIC_MAP_PATH_COLUMNS,
+    STATISTIC_MAP_PATH_TO_HDF5_DATASET,
 )
-from leopard_em.utils.data_io import load_mrc_image
+from leopard_em.utils.data_io import load_result_map_image
 from leopard_em.utils.image_processing import dose_weight_movie_to_micrograph
 
 TORCH_TO_NUMPY_PADDING_MODE = {
@@ -744,6 +745,12 @@ class _ParticleStackBase(BaseModel2DTM):
     ) -> tuple[torch.Tensor, list[pd.Index]]:
         """Load images grouped by a column and return images as a tensor with indexes.
 
+        Notes
+        -----
+        Statistic-map columns (e.g. ``mip_path``, ``psi_path``) may reference standalone
+        MRC files or a single HDF5 file bundling several maps as named datasets (the
+        ``MatchTemplateResultHDF5`` particle stack file format).
+
         Parameters
         ----------
         column_name : str
@@ -761,11 +768,13 @@ class _ParticleStackBase(BaseModel2DTM):
         if column_name not in self._df.columns:
             raise ValueError(f"Column '{column_name}' not found in the DataFrame.")
 
+        dataset_name = STATISTIC_MAP_PATH_TO_HDF5_DATASET.get(column_name)
+
         image_index_groups = self._df.groupby(column_name).groups
         images_list = []
         indices = []
         for img_path, indexes in image_index_groups.items():
-            img = load_mrc_image(img_path)
+            img = load_result_map_image(img_path, dataset_name=dataset_name)
             images_list.append(img)
             indices.append(indexes)
 
@@ -1113,7 +1122,9 @@ class _ParticleStackBase(BaseModel2DTM):
                 output_shape=output_shape,
             )
 
-            filter_stack[indexes] = cumulative_filter
+            # ``indexes`` holds index *labels* (string ``particle_id`` for HDF5 stacks)
+            positions = self._df.index.get_indexer(indexes)
+            filter_stack[positions] = cumulative_filter
 
         return filter_stack
 
@@ -1933,7 +1944,9 @@ class ParticleStackHDF5(_ParticleStackBase):
 def export_particle_stack(
     df: pd.DataFrame,
     output_path: str,
-    source_particle_stack: "_ParticleStackBase",
+    source_particle_stack: "_ParticleStackBase | None" = None,
+    extracted_box_size: tuple[int, int] | None = None,
+    original_template_size: tuple[int, int] | None = None,
     output_format: Literal["csv", "hdf5"] | None = None,
     allow_file_overwrite: bool = False,
 ) -> "ParticleStackCSV | ParticleStackHDF5":
@@ -1950,19 +1963,27 @@ def export_particle_stack(
     Parameters
     ----------
     df : pd.DataFrame
-        The particle table to write (e.g. a refined result table). Must be a superset of
-        the columns a `ParticleStackCSV`/`ParticleStackHDF5` expects; extra columns
-        (e.g. `refined_*`) are preserved as-is.
+        The particle table to write (e.g. a match_template or refined result table).
+        Must be a superset of the columns a `ParticleStackCSV`/`ParticleStackHDF5`
+        expects; extra columns (e.g. `refined_*`) are preserved as-is.
     output_path : str
         Destination file path.
-    source_particle_stack : _ParticleStackBase
+    source_particle_stack : _ParticleStackBase | None
         The particle stack `df` was derived from. Supplies the default output format
         (matches its own back-end) and the shared box-size/pre-processing metadata to
-        carry over to the new instance.
+        carry over to the new instance. Required unless both `extracted_box_size` and
+        `original_template_size` are given directly.
+    extracted_box_size : tuple[int, int] | None
+        Extracted particle box size, ``(H, W)``. Required when `source_particle_stack`
+        is not given; ignored (uses the source's value) otherwise.
+    original_template_size : tuple[int, int] | None
+        Original template box size used during the search, ``(H, W)``. Required when
+        `source_particle_stack` is not given; ignored otherwise.
     output_format : Literal["csv", "hdf5"] | None
-        Explicit output back-end. If None (default), inferred from
-        ``type(source_particle_stack)``: ``ParticleStackHDF5`` -> "hdf5", otherwise
-        "csv".
+        Explicit output back-end. If None (default): inferred from
+        ``type(source_particle_stack)`` when given (``ParticleStackHDF5`` -> "hdf5",
+        otherwise "csv"); must be specified explicitly when `source_particle_stack`
+        is not given.
     allow_file_overwrite : bool
         Whether to overwrite an existing file at ``output_path``. Default is False.
 
@@ -1975,24 +1996,41 @@ def export_particle_stack(
     Raises
     ------
     ValueError
-        If ``output_format`` is not one of "csv" or "hdf5".
+        If neither `source_particle_stack` nor both `extracted_box_size` and
+        `original_template_size` are given; if `output_format` is not given and
+        cannot be inferred; or if `output_format` is not one of "csv" or "hdf5".
     """
-    if output_format is None:
-        output_format = (
-            "hdf5" if isinstance(source_particle_stack, ParticleStackHDF5) else "csv"
-        )
-
-    spc = source_particle_stack
-    shared_kwargs: dict[str, Any] = {
-        "extracted_box_size": spc.extracted_box_size,
-        "original_template_size": spc.original_template_size,
-        "leopard_em_version": spc.leopard_em_version,
-        "global_whitening_applied": spc.global_whitening_applied,
-        "local_whitening_applied": spc.local_whitening_applied,
-        "global_normalization_applied": (spc.global_normalization_applied),
-        "local_normalization_applied": spc.local_normalization_applied,
-        "skip_df_load": True,
-    }
+    if source_particle_stack is not None:
+        if output_format is None:
+            is_hdf5 = isinstance(source_particle_stack, ParticleStackHDF5)
+            output_format = "hdf5" if is_hdf5 else "csv"
+        spc = source_particle_stack
+        shared_kwargs: dict[str, Any] = {
+            "extracted_box_size": spc.extracted_box_size,
+            "original_template_size": spc.original_template_size,
+            "leopard_em_version": spc.leopard_em_version,
+            "global_whitening_applied": spc.global_whitening_applied,
+            "local_whitening_applied": spc.local_whitening_applied,
+            "global_normalization_applied": (spc.global_normalization_applied),
+            "local_normalization_applied": spc.local_normalization_applied,
+            "skip_df_load": True,
+        }
+    else:
+        if extracted_box_size is None or original_template_size is None:
+            raise ValueError(
+                "Either 'source_particle_stack' or both 'extracted_box_size' and "
+                "'original_template_size' must be provided."
+            )
+        if output_format is None:
+            raise ValueError(
+                "'output_format' must be specified when 'source_particle_stack' "
+                "is not provided."
+            )
+        shared_kwargs = {
+            "extracted_box_size": extracted_box_size,
+            "original_template_size": original_template_size,
+            "skip_df_load": True,
+        }
 
     if output_format == "csv":
         csv_stack = ParticleStackCSV(df_path=output_path, **shared_kwargs)

@@ -316,13 +316,13 @@ def _setup_ctf_kwargs_from_particle_stack(
         }
 
     return {
-        "voltage": particle_stack["voltage"][0].item(),
-        "spherical_aberration": particle_stack["spherical_aberration"][0].item(),
-        "amplitude_contrast_ratio": particle_stack["amplitude_contrast_ratio"][
-            0
-        ].item(),
-        "ctf_B_factor": particle_stack["ctf_B_factor"][0].item(),
-        "phase_shift": particle_stack["phase_shift"][0].item(),
+        "voltage": particle_stack["voltage"].iloc[0].item(),
+        "spherical_aberration": particle_stack["spherical_aberration"].iloc[0].item(),
+        "amplitude_contrast_ratio": particle_stack["amplitude_contrast_ratio"]
+        .iloc[0]
+        .item(),
+        "ctf_B_factor": particle_stack["ctf_B_factor"].iloc[0].item(),
+        "phase_shift": particle_stack["phase_shift"].iloc[0].item(),
         "pixel_size": particle_stack["refined_pixel_size"].mean().item(),
         "template_shape": template_shape,
         "even_zernikes": even_zernikes_dict,

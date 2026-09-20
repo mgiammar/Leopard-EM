@@ -4,10 +4,13 @@ import os
 from pathlib import Path
 from typing import Any
 
+import h5py
 import mrcfile
 import numpy as np
 import pandas as pd
 import torch
+
+from leopard_em.pydantic_models.formats import HDF5_TENSORS_GROUP
 
 
 def read_mrc_to_numpy(mrc_path: str | os.PathLike | Path) -> np.ndarray:
@@ -125,6 +128,43 @@ def load_mrc_image(file_path: str | os.PathLike | Path) -> torch.Tensor:
         raise ValueError(f"MRC file is not two-dimensional. Got shape: {tensor.shape}")
 
     return tensor
+
+
+def load_result_map_image(
+    file_path: str | os.PathLike | Path, dataset_name: str | None = None
+) -> torch.Tensor:
+    """Load a single 2DTM result map, dispatching on the file's storage back-end.
+
+    Parameters
+    ----------
+    file_path : str | os.PathLike | Path
+        Path to the MRC or HDF5 file.
+    dataset_name : str | None
+        Name of the dataset to read from the HDF5 file's ``tensors`` group.
+        Ignored for MRC files. Required when ``file_path`` is an HDF5 file.
+
+    Returns
+    -------
+    torch.Tensor
+        The result map as a 2D float32 tensor.
+
+    Raises
+    ------
+    ValueError
+        If ``file_path`` is an HDF5 file and ``dataset_name`` is ``None``.
+    """
+    suffix = Path(file_path).suffix.lower()
+    if suffix in (".h5", ".hdf5"):
+        if dataset_name is None:
+            raise ValueError(
+                "'dataset_name' is required to load a result map from an HDF5 "
+                f"file, but got None for file '{file_path}'."
+            )
+        with h5py.File(file_path, "r") as f:
+            data = f[HDF5_TENSORS_GROUP][dataset_name][:]
+        return torch.from_numpy(data).to(torch.float32)
+
+    return load_mrc_image(file_path)
 
 
 def load_mrc_volume(file_path: str | os.PathLike | Path) -> torch.Tensor:

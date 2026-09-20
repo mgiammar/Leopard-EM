@@ -11,6 +11,22 @@ STATISTIC_MAP_PATH_COLUMNS = [
     "defocus_path",
 ]
 
+# Name of the HDF5 group holding result tensors in a ``MatchTemplateResultHDF5`` file.
+HDF5_TENSORS_GROUP = "tensors"
+
+# Maps each dataframe "*_path" statistic-map column to the dataset name it corresponds
+# to inside a ``MatchTemplateResultHDF5`` file's ``tensors`` group.
+STATISTIC_MAP_PATH_TO_HDF5_DATASET = {
+    "mip_path": "mip",
+    "scaled_mip_path": "scaled_mip",
+    "psi_path": "orientation_psi",
+    "theta_path": "orientation_theta",
+    "phi_path": "orientation_phi",
+    "defocus_path": "relative_defocus",
+    "correlation_average_path": "correlation_average",
+    "correlation_variance_path": "correlation_variance",
+}
+
 MATCH_TEMPLATE_DF_COLUMN_ORDER = [
     "particle_index",
     "mip",

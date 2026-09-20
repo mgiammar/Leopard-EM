@@ -585,7 +585,9 @@ def astigmatism_angle_tensor(
     device: torch.device,
 ) -> torch.Tensor:
     """Return the per-particle astigmatism angle as a tensor on ``device``."""
-    return torch.tensor(particle_stack["astigmatism_angle"], device=device)
+    return torch.tensor(
+        particle_stack["astigmatism_angle"].to_numpy().copy(), device=device
+    )
 
 
 # pylint: disable=too-many-locals

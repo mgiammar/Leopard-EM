@@ -4,14 +4,17 @@ import os
 import pathlib
 import tempfile
 
+import h5py
 import mrcfile
 import numpy as np
 import pytest
 import torch
 
+from leopard_em.pydantic_models.formats import HDF5_TENSORS_GROUP
 from leopard_em.utils.data_io import (
     load_mrc_image,
     load_mrc_volume,
+    load_result_map_image,
     read_mrc_to_numpy,
     read_mrc_to_tensor,
     write_mrc_from_numpy,
@@ -86,6 +89,40 @@ def test_load_mrc_image():
     # Ensure the method raises a ValueError if the MRC file is not two-dimensional
     with pytest.raises(ValueError, match="MRC file is not two-dimensional"):
         load_mrc_image(EXAMPLE_VOLUME_PATH)
+
+
+def test_load_result_map_image_mrc_matches_load_mrc_image():
+    """MRC paths should be dispatched to identical behavior as load_mrc_image."""
+    expected = load_mrc_image(EXAMPLE_IMAGE_PATH)
+    result = load_result_map_image(EXAMPLE_IMAGE_PATH)
+
+    assert isinstance(result, torch.Tensor)
+    torch.testing.assert_close(result, expected)
+
+
+def test_load_result_map_image_hdf5_reads_named_dataset():
+    """HDF5 paths should read the dataset named by 'dataset_name'."""
+    psi_data = np.full((4, 5), 7.0, dtype=np.float32)
+    defocus_data = np.full((4, 5), 9.0, dtype=np.float32)
+
+    with tempfile.NamedTemporaryFile(suffix=".h5", delete=False) as temp_file:
+        with h5py.File(temp_file.name, "w") as f:
+            grp = f.create_group(HDF5_TENSORS_GROUP)
+            grp.create_dataset("orientation_psi", data=psi_data)
+            grp.create_dataset("relative_defocus", data=defocus_data)
+
+        psi = load_result_map_image(temp_file.name, dataset_name="orientation_psi")
+        defocus = load_result_map_image(temp_file.name, dataset_name="relative_defocus")
+
+        assert isinstance(psi, torch.Tensor)
+        np.testing.assert_array_equal(psi.numpy(), psi_data)
+        np.testing.assert_array_equal(defocus.numpy(), defocus_data)
+
+        # dataset_name is required for HDF5 files
+        with pytest.raises(ValueError, match="dataset_name"):
+            load_result_map_image(temp_file.name, dataset_name=None)
+
+    os.remove(temp_file.name)
 
 
 def test_load_mrc_volume():

@@ -9,7 +9,12 @@ import torch
 from leopard_em.pydantic_models.data_structures.particle_stack import (
     ParticleStack,
     ParticleStackHDF5,
+    export_particle_stack,
 )
+from leopard_em.pydantic_models.results.match_template_result import (
+    MatchTemplateResultHDF5,
+)
+from leopard_em.utils.backend_setup import _setup_correlation_stacks_from_micrographs
 
 # Tests construct minimal ParticleStack instances by assigning their backing frames.
 # pylint: disable=protected-access
@@ -597,3 +602,117 @@ def test_hdf5_get_local_stat_maps_falls_back_when_not_stored(tmp_path):
 
     assert np.allclose(stat_maps["mip_path"][0].numpy(), mip1_ground_truth)
     assert np.allclose(stat_maps["mip_path"][1].numpy(), mip2_ground_truth)
+
+
+def test_load_images_grouped_by_column_disambiguates_bundled_hdf5_result(tmp_path):
+    """All eight statistic columns may point at the same MatchTemplateResultHDF5 file.
+
+    This mirrors ``MatchTemplateManager.results_to_dataframe``'s HDF5 branch, where
+    every ``*_path`` column is set to the same ``hdf5_path`` because all eight result
+    maps are bundled as distinct datasets in one file. Loading must disambiguate by
+    dataset name rather than assume "one path == one map".
+    """
+    shape = (8, 8)
+    tensor_names = (
+        "mip",
+        "scaled_mip",
+        "correlation_average",
+        "correlation_variance",
+        "orientation_psi",
+        "orientation_theta",
+        "orientation_phi",
+        "relative_defocus",
+    )
+    tensors = {
+        name: torch.full(shape, float(i), dtype=torch.float32)
+        for i, name in enumerate(tensor_names)
+    }
+
+    hdf5_path = str(tmp_path / "match_template_result.h5")
+    result = MatchTemplateResultHDF5(
+        hdf5_path=hdf5_path,
+        allow_file_overwrite=True,
+        total_projections=1,
+        total_orientations=1,
+        total_defocus=1,
+        **tensors,
+    )
+    result.to_hdf5()
+
+    df = make_minimal_df(num_rows=2)
+    for column in [
+        "mip_path",
+        "scaled_mip_path",
+        "psi_path",
+        "theta_path",
+        "phi_path",
+        "defocus_path",
+        "correlation_average_path",
+        "correlation_variance_path",
+    ]:
+        df[column] = hdf5_path
+
+    ps = ParticleStackHDF5(
+        hdf5_path=str(tmp_path / "particles.h5"),
+        extracted_box_size=(8, 8),
+        original_template_size=(8, 8),
+        skip_df_load=True,
+    )
+    ps._df = df
+
+    column_to_expected_tensor_name = {
+        "mip_path": "mip",
+        "scaled_mip_path": "scaled_mip",
+        "psi_path": "orientation_psi",
+        "theta_path": "orientation_theta",
+        "phi_path": "orientation_phi",
+        "defocus_path": "relative_defocus",
+        "correlation_average_path": "correlation_average",
+        "correlation_variance_path": "correlation_variance",
+    }
+    for column, tensor_name in column_to_expected_tensor_name.items():
+        images, _indices = ps.load_images_grouped_by_column(column_name=column)
+        assert images.shape == (1, *shape)
+        torch.testing.assert_close(images[0], tensors[tensor_name])
+
+    # End-to-end: the correlation mean/std setup used by every standard
+    # refine_template run must also work against this bundled HDF5 result.
+    corr_mean_stack, corr_std_stack = _setup_correlation_stacks_from_micrographs(
+        particle_stack=ps,
+        mean_stack=None,
+        std_stack=None,
+        particle_indices=None,
+        extracted_box_size=(8, 8),
+        device=torch.device("cpu"),
+    )
+    assert corr_mean_stack.shape == (2, 8, 8)
+    assert corr_std_stack.shape == (2, 8, 8)
+    torch.testing.assert_close(
+        corr_mean_stack, tensors["correlation_average"].expand(2, -1, -1)
+    )
+    torch.testing.assert_close(
+        corr_std_stack, tensors["correlation_variance"].sqrt().expand(2, -1, -1)
+    )
+
+
+def test_export_particle_stack_requires_box_sizes_without_source():
+    """Without a source particle stack, box sizes must be given explicitly."""
+    df = make_minimal_df(num_rows=1)
+    with pytest.raises(ValueError, match="extracted_box_size"):
+        export_particle_stack(
+            df=df,
+            output_path="unused.h5",
+            output_format="hdf5",
+        )
+
+
+def test_export_particle_stack_requires_output_format_without_source(tmp_path):
+    """Without a source particle stack, output_format cannot be inferred."""
+    df = make_minimal_df(num_rows=1)
+    with pytest.raises(ValueError, match="output_format"):
+        export_particle_stack(
+            df=df,
+            output_path=str(tmp_path / "out.h5"),
+            extracted_box_size=(34, 34),
+            original_template_size=(32, 32),
+        )
