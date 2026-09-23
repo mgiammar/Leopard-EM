@@ -12,7 +12,10 @@ from leopard_em.utils.fft_padding import (
     FFTPaddingWarning,
     next_even_fft_shape,
 )
-from leopard_em.utils.zipfft_support import ZIPFFT_AVAILABLE, snap_image_shape_to_zipfft
+from leopard_em.utils.zipfft_support import (
+    snap_image_shape_to_zipfft,
+    zipfft_supported_image_shapes,
+)
 
 # Fractional increase to raise warning about
 LARGE_AREA_GROWTH = 0.22
@@ -102,36 +105,36 @@ class FastFFTPaddingConfig(BaseModel2DTM):
         Raises
         ------
         ValueError
-            If ``target_shape`` is smaller than the image in either dimension, or is odd
-            on RFFT dimension.
+            If ``target_shape`` is smaller than the image in either dimension, or is
+            odd on the last (RFFT) dimension.
         """
         if not self.enabled:
-            return FFTPaddingPlan(
-                original_shape=image_shape,
-                padded_shape=image_shape,
-                template_shape=template_shape,
-                noise_seed=self.noise_seed,
-                effective_backend=backend,
-            )
-
-        effective_backend = backend
+            padded_shape = image_shape
         # Ensure padded shape is at least as large as the image
-        if self.target_shape is not None:
+        elif self.target_shape is not None:
             padded_shape = (int(self.target_shape[0]), int(self.target_shape[1]))
             if padded_shape[0] < image_shape[0] or padded_shape[1] < image_shape[1]:
                 raise ValueError(
                     f"Configured 'target_shape' {padded_shape} is smaller than the "
                     f"image shape {image_shape}."
                 )
+            # NOTE: only last axis is constrained since RFFT as `W = 2 * (w_rfft - 1)`,
+            #       and some zipFFT kernels use odd sizes at 3125.
             if padded_shape[1] % 2 != 0:
                 raise ValueError(
-                    f"Configured 'target_shape' {padded_shape} must be even on last "
-                    f"dimensions for the backend's real-FFT shape conventions."
+                    f"Configured 'target_shape' {padded_shape} must be even on the "
+                    f"last dimension for the backend's real-FFT shape conventions."
                 )
         else:
-            padded_shape, effective_backend = self._automatic_padded_shape(
+            padded_shape = self._automatic_padded_shape(
                 image_shape, template_shape, backend
             )
+
+        # NOTE: run on *every* path above. Disabling padding or pinning an explicit
+        # 'target_shape' must not smuggle an un-compiled shape into the zipFFT kernel.
+        effective_backend = self._resolve_effective_backend(
+            padded_shape, template_shape, backend
+        )
 
         plan = FFTPaddingPlan(
             original_shape=image_shape,
@@ -150,30 +153,56 @@ class FastFFTPaddingConfig(BaseModel2DTM):
         image_shape: tuple[int, int],
         template_shape: tuple[int, int],
         backend: str,
-    ) -> tuple[tuple[int, int], str]:
-        """Select a padded shape and backend, preferring a compiled zipFFT shape."""
+    ) -> tuple[int, int]:
+        """Select a padded shape, preferring a compiled zipFFT shape when available."""
         factors = tuple(self.allowed_factors)
 
-        if backend != "zipfft":
-            return next_even_fft_shape(image_shape, factors), backend
-
-        if ZIPFFT_AVAILABLE:
+        if backend == "zipfft":
             snapped = snap_image_shape_to_zipfft(image_shape, template_shape)
             if snapped is not None:
-                return snapped, backend
+                return snapped
+
+        return next_even_fft_shape(image_shape, factors)
+
+    @staticmethod
+    def _resolve_effective_backend(
+        padded_shape: tuple[int, int],
+        template_shape: tuple[int, int],
+        backend: str,
+    ) -> str:
+        """Downgrade a requested 'zipfft' backend when no compiled config fits.
+
+        Parameters
+        ----------
+        padded_shape : tuple[int, int]
+            Real-space ``(H, W)`` that will actually be handed to the backend.
+        template_shape : tuple[int, int]
+            Real-space ``(h, w)`` of a single template projection.
+        backend : str
+            Backend requested in the computational configuration.
+
+        Returns
+        -------
+        str
+            ``backend`` unchanged, or ``"streamed"`` when "zipfft" was requested but
+            no compiled zipFFT configuration matches the shape pair.
+        """
+        if backend != "zipfft":
+            return backend
+
+        # Empty when zipFFT is not installed, so this covers that case too.
+        if padded_shape in zipfft_supported_image_shapes(template_shape):
+            return backend
 
         warnings.warn(
-            f"The 'zipfft' backend cannot run an image of shape {image_shape} with "
-            f"a {template_shape} template (no compiled configuration fits, or "
-            f"zipFFT is not installed), so cross-correlation will fall back to the "
-            f"'batched' backend at the next fast FFT size. Compile additional "
-            f"zipFFT shapes or set 'fast_fft_padding.target_shape' explicitly to "
-            f"keep using zipFFT.",
+            f"The 'zipfft' backend has no compiled configuration for a "
+            f"{padded_shape} image with a {template_shape} template (or zipFFT is "
+            f"not installed), so cross-correlation will fall back to 'streamed'.",
             FFTPaddingWarning,
             stacklevel=3,
         )
 
-        return next_even_fft_shape(image_shape, factors), "batched"
+        return "streamed"
 
     def _warn_if_padding_large(self, plan: FFTPaddingPlan) -> None:
         """Warn when padding grows the image enough to matter for GPU memory."""

@@ -212,13 +212,13 @@ computational_config:
   backend: zipfft
 ```
 
-!!! warning "zipFFT supports limited image/template sizes
+!!! warning "zipFFT supports limited image/template sizes"
 
     The `zipfft` backend requires the reference template volume to be cubic.
     By default, `zipfft` supports 512x512x512 templates and 4096x4096 images, but other sizes can be compiled from source (see the [zipFFT GitHub page](www.github.com/mgiammar/zipFFT) for details on compiling an expanded set of shapes/sizes).
 
     When `backend: zipfft` is selected, [fast FFT padding](#padding-to-a-fast-fft-size) automatically snaps the image up to a compiled zipFFT size where one fits, which is usually what makes this backend usable on real micrographs.
-    A warning is emitted and the image is padded to the next fast FFT size instead — at which point the `zipfft` backend cannot run, and you should either compile the required shape or choose another backend.
+    If no compiled shape fits — or if you disable padding, or pin an explicit `target_shape` that zipFFT was not compiled for — a warning is emitted and the search transparently falls back to the `streamed` backend. The run still completes; it just does not get the zipFFT speedup. To keep using zipFFT, compile the required shape (see above).
 
     zipFFT also only supports a fixed set of batch sizes internally. For best performance, set `orientation_batch_size` (passed to `run_match_template`) to one of zipFFT's compiled supported batch sizes; any other value still runs correctly via an automatic per-orientation (batch=1) fallback, just without the full performance benefit.
 

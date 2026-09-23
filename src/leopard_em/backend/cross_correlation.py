@@ -8,7 +8,19 @@ from leopard_em.backend.utils import (
     normalize_template_projection,
     normalize_template_projection_compiled,
 )
-from leopard_em.utils.zipfft_support import zipfft, zipfft_supported_batch_sizes
+from leopard_em.utils.zipfft_support import (
+    zipfft,
+    zipfft_supported_batch_sizes,
+    zipfft_supported_image_shapes,
+)
+
+
+def _image_shape_from_rfft(image_dft: torch.Tensor) -> tuple[int, int]:
+    """Real-space ``(H, W)`` implied by an untransposed ``(H, W // 2 + 1)`` RFFT.
+
+    Assumes an even real-space width, which every Leopard-EM padding path guarantees.
+    """
+    return (int(image_dft.shape[-2]), 2 * (int(image_dft.shape[-1]) - 1))
 
 
 # pylint: disable=too-many-locals,E1102
@@ -20,6 +32,7 @@ def do_streamed_orientation_cross_correlate(
     streams: list[torch.cuda.Stream],
     apply_normalization: bool = True,
     mag_matrix: torch.Tensor | None = None,
+    image_shape_real: tuple[int, int] | None = None,
 ) -> torch.Tensor:
     """Calculates a grid of 2D cross-correlations over multiple CUDA streams.
 
@@ -55,6 +68,10 @@ def do_streamed_orientation_cross_correlate(
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
+    image_shape_real : tuple[int, int] | None, optional
+        True real-space shape ``(H, W)`` of the image. When None, it is inferred from
+        ``image_dft`` assuming an untransposed ``(H, W // 2 + 1)`` RFFT layout.
+        Default is None.
 
     Returns
     -------
@@ -63,9 +80,11 @@ def do_streamed_orientation_cross_correlate(
         orientation and defocus value. Will have shape
         (num_Cs, num_defocus, num_orientations, H, W).
     """
+    if image_shape_real is None:
+        image_shape_real = _image_shape_from_rfft(image_dft)
+
     # Accounting for RFFT shape
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
-    image_shape_real = (image_dft.shape[0], image_dft.shape[1] * 2 - 2)
 
     num_orientations = rotation_matrices.shape[0]
     num_Cs = projective_filters.shape[0]  # pylint: disable=invalid-name
@@ -135,13 +154,6 @@ def do_streamed_orientation_cross_correlate(
                         temp_fft, n=image_shape_real[0], dim=-2
                     )
 
-                    # NOTE: Decomposing 2D FFT into component 1D FFTs. Saves on first
-                    # pass where many lines are zeros. Approx 6-8% speedup.
-                    temp_fft = torch.fft.rfft(projection, n=image_shape_real[1], dim=-1)
-                    projection_dft = torch.fft.fft(
-                        temp_fft, n=image_shape_real[0], dim=-2
-                    )
-
                     # # Padded forward Fourier transform for cross-correlation
                     # projection_dft = torch.fft.rfft2(projection, s=image_shape_real)
 
@@ -177,6 +189,7 @@ def do_batched_orientation_cross_correlate(
     apply_normalization: bool = True,
     requires_grad: bool = False,
     mag_matrix: torch.Tensor | None = None,
+    image_shape_real: tuple[int, int] | None = None,
 ) -> torch.Tensor:
     """Batched projection and cross-correlation with fixed (batched) filters.
 
@@ -212,6 +225,10 @@ def do_batched_orientation_cross_correlate(
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
+    image_shape_real : tuple[int, int] | None, optional
+        True real-space shape ``(H, W)`` of the image. When None, it is inferred from
+        ``image_dft`` assuming an untransposed ``(H, W // 2 + 1)`` RFFT layout.
+        Default is None.
 
     Returns
     -------
@@ -221,8 +238,10 @@ def do_batched_orientation_cross_correlate(
         (num_Cs, num_defocus, num_orientations, H, W).
     """
     # Accounting for RFFT shape
+    if image_shape_real is None:
+        image_shape_real = _image_shape_from_rfft(image_dft)
+
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
-    image_shape_real = (image_dft.shape[0], image_dft.shape[1] * 2 - 2)
 
     num_Cs = projective_filters.shape[0]  # pylint: disable=invalid-name
     num_defocus = projective_filters.shape[1]
@@ -310,6 +329,7 @@ def do_batched_orientation_cross_correlate_cpu(
     projective_filters: torch.Tensor,
     apply_normalization: bool = True,
     mag_matrix: torch.Tensor | None = None,
+    image_shape_real: tuple[int, int] | None = None,
 ) -> torch.Tensor:
     """Same as `do_streamed_orientation_cross_correlate` but on the CPU.
 
@@ -338,6 +358,10 @@ def do_batched_orientation_cross_correlate_cpu(
     mag_matrix : torch.Tensor | None, optional
         Anisotropic magnification matrix of shape (2, 2). If None,
         no magnification transform is applied. Default is None.
+    image_shape_real : tuple[int, int] | None, optional
+        True real-space shape ``(H, W)`` of the image. When None, it is inferred from
+        ``image_dft`` assuming an untransposed ``(H, W // 2 + 1)`` RFFT layout.
+        Default is None.
 
     Returns
     -------
@@ -345,8 +369,10 @@ def do_batched_orientation_cross_correlate_cpu(
         Cross-correlation for the batch of orientations and defocus values.s
     """
     # Accounting for RFFT shape
+    if image_shape_real is None:
+        image_shape_real = _image_shape_from_rfft(image_dft)
+
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
-    image_shape_real = (image_dft.shape[0], image_dft.shape[1] * 2 - 2)
 
     # Extract central slice(s) from the template volume
     fourier_slice = extract_central_slices_rfft_3d(
@@ -401,6 +427,7 @@ def do_batched_orientation_frc(
     projective_filters: torch.Tensor,
     apply_normalization: bool = True,
     mag_matrix: torch.Tensor | None = None,
+    image_shape_real: tuple[int, int] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Batched projection and Fourier ring correlation with fixed filters.
 
@@ -418,6 +445,10 @@ def do_batched_orientation_frc(
         Whether to normalize real-space projections before FRC.
     mag_matrix : torch.Tensor | None, optional
         Optional anisotropic magnification matrix.
+    image_shape_real : tuple[int, int] | None, optional
+        True real-space shape ``(H, W)`` of the image. When None, it is inferred from
+        ``image_dft`` assuming an untransposed ``(H, W // 2 + 1)`` RFFT layout.
+        Default is None.
 
     Returns
     -------
@@ -425,8 +456,10 @@ def do_batched_orientation_frc(
         - frc_values: shape (num_Cs, num_defocus, num_orientations, num_freq_bins)
         - frequency_bins: shape (num_freq_bins,)
     """
+    if image_shape_real is None:
+        image_shape_real = _image_shape_from_rfft(image_dft)
+
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
-    image_shape_real = (image_dft.shape[0], image_dft.shape[1] * 2 - 2)
 
     num_orientations = rotation_matrices.shape[0]
     num_cs = projective_filters.shape[0]
@@ -494,6 +527,7 @@ def do_batched_orientation_cross_correlate_zipfft(
     template_dft: torch.Tensor,
     rotation_matrices: torch.Tensor,
     projective_filters: torch.Tensor,
+    image_shape_real: tuple[int, int],
 ) -> torch.Tensor:
     """Batched projection and cross-correlation using zipfft backend.
 
@@ -507,7 +541,10 @@ def do_batched_orientation_cross_correlate_zipfft(
     ----------
     image_dft : torch.Tensor
         Real-fourier transform (RFFT) of the image with large image filters
-        already applied. Has shape (H, W // 2 + 1).
+        already applied. Unlike the other backends in this module, this tensor must
+        already be transposed into the contiguous ``(W // 2 + 1, H)`` layout that the
+        zipFFT kernel expects (see ``_prepare_image_dft`` in
+        ``leopard_em.backend.core_match_template``).
     template_dft : torch.Tensor
         Real-fourier transform (RFFT) of the template volume to take Fourier
         slices from. Has shape (l, h, w // 2 + 1) where (l, h, w) is the original
@@ -518,6 +555,9 @@ def do_batched_orientation_cross_correlate_zipfft(
     projective_filters : torch.Tensor
         Multiplied 'ctf_filters' with 'whitening_filter_template'. Has shape
         (num_Cs, num_defocus, h, w // 2 + 1). Is RFFT and not fftshifted.
+    image_shape_real : tuple[int, int]
+        True real-space shape ``(H, W)`` of the image. Required rather than inferred,
+        because ``image_dft`` arrives transposed and its axes alone are ambiguous.
 
     Returns
     -------
@@ -530,24 +570,39 @@ def do_batched_orientation_cross_correlate_zipfft(
     ------
     ImportError
         If the optional ``zipfft`` package is not installed.
+    ValueError
+        If ``image_dft`` is not in the expected transposed layout for
+        ``image_shape_real``, or if zipFFT has no compiled configuration for the
+        given template and image shapes.
     """
     if zipfft is None:
         raise ImportError(
             "backend='zipfft' requires the optional 'zipfft' package, which is not "
             "installed in this environment. Install it from "
             "https://github.com/mgiammar/zipFFT, or select a different backend "
-            "('batched' or 'streamed')."
+            "('streamed' or 'batched')."
         )
 
     # Accounting for RFFT shape
     projection_shape_real = (template_dft.shape[1], template_dft.shape[2] * 2 - 2)
-    # NOTE: 'image_dft' is pre-transposed to (W // 2 + 1, H) for the zipFFT kernel's
-    # memory layout only; it is not a semantic transpose of the image, so the (H, W)
-    # real-space shape below must swap the axes back to recover true (rows, cols).
-    image_shape_real = (
-        image_dft.shape[1],
-        image_dft.shape[0] * 2 - 2,
-    )
+
+    # 'image_shape_real' is the true (H, W)
+    # 'transposed_dft_shape' is the layout the zipFFT reads
+    transposed_dft_shape = (image_shape_real[1] // 2 + 1, image_shape_real[0])
+    if tuple(image_dft.shape[-2:]) != transposed_dft_shape:
+        raise ValueError(
+            f"'image_dft' has trailing shape {tuple(image_dft.shape[-2:])}, but a "
+            f"{image_shape_real} image transposed for zipFFT must have shape "
+            f"{transposed_dft_shape}. Pass the DFT through '_prepare_image_dft'."
+        )
+
+    # NOTE: zipFFT only runs shapes it was compiled for, check here and raise error
+    if image_shape_real not in zipfft_supported_image_shapes(projection_shape_real):
+        raise ValueError(
+            f"zipFFT has no compiled configuration for a {image_shape_real} image "
+            f"with a {projection_shape_real} template. Compile the required shape, "
+            f"or select the 'streamed' or 'batched' backend."
+        )
 
     num_orientations = rotation_matrices.shape[0]
     num_Cs = projective_filters.shape[0]  # pylint: disable=invalid-name
@@ -597,8 +652,9 @@ def do_batched_orientation_cross_correlate_zipfft(
     )
 
     # NOTE: zipFFT is compiled for a fixed set of (template, image, batch) configs.
-    # 'image_shape_real' is transposed here, matching the layout handed to
-    # 'zipfft.padded_rconv2d.corr' below.
+    # Both this lookup and the trailing (fft_y, fft_x) arguments of
+    # 'zipfft.padded_rconv2d.corr' below take the true (H, W), not the transposed buffer
+    # layout.
     supported_batch_sizes = zipfft_supported_batch_sizes(
         projection_shape_real, image_shape_real
     )
@@ -607,8 +663,8 @@ def do_batched_orientation_cross_correlate_zipfft(
         for k in range(num_Cs):
             # Use zipfft for cross-correlation
             # projections[k, j, ...] has shape (num_orientations, H_proj, W_proj)
-            # image_dft has already been pre-transposed into contiguous layout
-            # with (W // 2 + 1, H) for memory efficiency
+            # image_dft is already in the (W // 2 + 1, H) contiguous layout verified
+            # by the 'transposed_dft_shape' check above
             # cross_correlation[k, j, ...] has shape (num_orientations, H_out, W_out)
 
             # NOTE: zipFFT only supports certain batch sizes for optimal performance.

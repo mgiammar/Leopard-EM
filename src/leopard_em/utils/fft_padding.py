@@ -1,7 +1,6 @@
 """Padding images up to fast FFT sizes and cropping results back down."""
 
 from dataclasses import dataclass
-from typing import Any
 
 import torch
 from torch_grid_utils import next_fft_size
@@ -108,9 +107,9 @@ def pad_image_gaussian(
     padded = torch.empty(padded_shape, dtype=image.dtype, device=image.device)
     padded[:height, :width] = image
 
-    pad_mask = torch.ones(padded_shape, dtype=torch.bool, device=image.device)
-    pad_mask[:height, :width] = False
-    num_pad_values = int(pad_mask.sum())
+    # Do in Python ints to avoid device-sync on PyTorch
+    right_count = height * pad_width
+    num_pad_values = right_count + pad_height * padded_shape[1]
 
     noise = torch.randn(
         num_pad_values,
@@ -122,62 +121,15 @@ def pad_image_gaussian(
         noise = (noise - noise.mean()) / noise.std()
     else:
         noise = torch.zeros_like(noise)
-    padded[pad_mask] = noise * image.std() + image.mean()
+    noise = noise * image.std() + image.mean()
+
+    # NOTE: filling the right strip before the bottom block reproduces the row-major
+    # order of a boolean-mask scatter over the pad region, so a given 'seed' yields
+    # bitwise the same padded image as the previous mask-based implementation.
+    padded[:height, width:] = noise[:right_count].view(height, pad_width)
+    padded[height:, :] = noise[right_count:].view(pad_height, padded_shape[1])
 
     return padded
-
-
-def crop_bottom_right(
-    tensor: torch.Tensor, crop_shape: tuple[int, int]
-) -> torch.Tensor:
-    """Crop the trailing two dimensions of a tensor, keeping the top-left origin."""
-    if crop_shape[0] > tensor.shape[-2] or crop_shape[1] > tensor.shape[-1]:
-        raise ValueError(
-            f"Cannot crop a tensor with trailing shape "
-            f"{tuple(tensor.shape[-2:])} up to {crop_shape}."
-        )
-    return tensor[..., : crop_shape[0], : crop_shape[1]]
-
-
-def filter_correlation_table(
-    correlation_table: dict[str, Any], valid_shape: tuple[int, int]
-) -> dict[str, Any]:
-    """Drop correlation-table rows whose position lies outside the valid region.
-
-    Parameters
-    ----------
-    correlation_table : dict[str, Any]
-        Processed correlation table as returned by the backend.
-    valid_shape : tuple[int, int]
-        Shape ``(H, W)`` of the valid correlation region to retain.
-
-    Returns
-    -------
-    dict[str, Any]
-        Table containing only rows with ``y < H`` and ``x < W``. The input object is
-        returned unchanged when every row is already inside the valid region.
-    """
-    valid_height, valid_width = valid_shape
-    y_positions = correlation_table["y"]
-    x_positions = correlation_table["x"]
-    num_rows = len(y_positions)
-
-    keep = [
-        index
-        for index, (y, x) in enumerate(zip(y_positions, x_positions, strict=True))
-        if y < valid_height and x < valid_width
-    ]
-    if len(keep) == num_rows:
-        return correlation_table
-
-    return {
-        key: (
-            [value[index] for index in keep]
-            if isinstance(value, list) and len(value) == num_rows
-            else value
-        )
-        for key, value in correlation_table.items()
-    }
 
 
 @dataclass(frozen=True)
@@ -195,15 +147,14 @@ class FFTPaddingPlan:
     noise_seed : int
         Seed for the Gaussian fill, so a plan fully reproduces a padded image.
     effective_backend : str
-        Cross-correlation backend. Typically the requested backend, but for "zipfft" may
-        fall back to PyTorch "streamed" if no supported image shape exists.
+        Cross-correlation backend actually used. Typically the requested backend, but
+        a requested "zipfft" falls back to the PyTorch "streamed" backend when no
+        compiled zipFFT configuration matches the padded image and template shapes.
 
     Methods
     -------
     pad(image)
         Pad a real-space image according to this plan.
-    unpad(tensor)
-        Crop a padded result map back to the unpadded extent.
     """
 
     original_shape: tuple[int, int]
@@ -273,22 +224,3 @@ class FFTPaddingPlan:
             Image padded to ``padded_shape``.
         """
         return pad_image_gaussian(image, self.padded_shape, seed=self.noise_seed)
-
-    def unpad(self, tensor: torch.Tensor) -> torch.Tensor:
-        """Crop a padded result map back to what an unpadded search would produce.
-
-        Parameters
-        ----------
-        tensor : torch.Tensor
-            Result map whose trailing two dimensions track the padded image shape.
-
-        Returns
-        -------
-        torch.Tensor
-            Cropped view of ``tensor``.
-        """
-        pad_height, pad_width = self.pad_amount
-        return crop_bottom_right(
-            tensor,
-            (tensor.shape[-2] - pad_height, tensor.shape[-1] - pad_width),
-        )

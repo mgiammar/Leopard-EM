@@ -101,37 +101,19 @@ def test_no_shape_requested_before_kwargs_are_built():
     assert manager._unpadded_valid_shape() is None
 
 
-# --- the defensive un-pad path ------------------------------------------------------
+# --- the backend is solely responsible for cropping ---------------------------------
 
 
-def test_defensive_unpad_is_a_noop_when_backend_honoured_the_shape():
+def test_populate_raises_when_backend_returns_padded_maps():
+    """The manager must not silently accept maps it asked to be cropped."""
     manager = _manager(enabled=True)
-    results = _fake_results(VALID_SHAPE)
-    assert manager._unpad_backend_results(results) is results
-
-
-def test_defensive_unpad_crops_maps_to_the_unpadded_region():
-    manager = _manager(enabled=True)
-    unpadded = manager._unpad_backend_results(_fake_results(PADDED_VALID_SHAPE))
-    for key in MAP_KEYS:
-        assert unpadded[key].shape == VALID_SHAPE, key
-        # The ramp makes an off-by-one or a wrong-corner crop immediately visible.
-        assert torch.equal(
-            unpadded[key], _ramp(PADDED_VALID_SHAPE)[: VALID_SHAPE[0], : VALID_SHAPE[1]]
+    with pytest.raises(RuntimeError, match=r"expected .* from the FFT padding plan"):
+        manager._populate_match_template_result(
+            _fake_results(PADDED_VALID_SHAPE),
+            defocus_values=torch.zeros(1),
+            euler_angles=torch.zeros(1, 3),
+            do_result_export=False,
         )
-
-
-def test_defensive_unpad_drops_correlation_rows_outside_the_valid_region():
-    manager = _manager(enabled=True)
-    unpadded = manager._unpad_backend_results(_fake_results(PADDED_VALID_SHAPE))
-    table = unpadded["correlation_table"]
-    assert table["x"] == [3]
-    assert table["y"] == [4]
-    assert table["correlation"] == [9.0]
-    assert table["threshold"] == 5.5
-    # Every remaining row must index safely into the cropped statistics maps.
-    for x, y in zip(table["x"], table["y"], strict=True):
-        assert unpadded["correlation_mean"][y, x] is not None
 
 
 # --- both run paths must request the shape ------------------------------------------

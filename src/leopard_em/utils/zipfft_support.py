@@ -72,9 +72,10 @@ def zipfft_supported_batch_sizes(
     template_shape : tuple[int, int]
         Real-space template (kernel) shape ``(h, w)``.
     image_shape : tuple[int, int]
-        Image shape as zipFFT sees it. Note that the caller in
-        ``leopard_em.backend.cross_correlation`` passes a *transposed* image shape,
-        matching the pre-transposed layout handed to ``zipfft.padded_rconv2d.corr``.
+        True real-space image shape ``(H, W)``. This is the same orientation used by
+        :func:`zipfft_supported_image_shapes` and by ``zipfft.padded_rconv2d.corr``'s
+        trailing ``(fft_y, fft_x)`` arguments. Note that the *buffer* handed to that
+        kernel is transposed to ``(W // 2 + 1, H)``; this shape is not.
 
     Returns
     -------

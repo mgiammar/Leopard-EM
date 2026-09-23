@@ -157,7 +157,8 @@ def test_batched_zipfft_cross_correlate_consistency(sample_input_data):
     cross_correlate_kwargs["image_dft"] = image_dft
 
     zipfft_result = do_batched_orientation_cross_correlate_zipfft(
-        **cross_correlate_kwargs
+        **cross_correlate_kwargs,
+        image_shape_real=(IMAGE_SHAPE[-2], IMAGE_SHAPE[-1]),
     )
 
     assert zipfft_result.shape == batched_result.shape
@@ -193,4 +194,5 @@ def test_batched_zipfft_cross_correlate_raises_import_error_when_unavailable():
             template_dft=dummy,
             rotation_matrices=dummy,
             projective_filters=dummy,
+            image_shape_real=(1, 1),
         )

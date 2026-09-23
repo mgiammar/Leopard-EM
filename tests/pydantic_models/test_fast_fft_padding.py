@@ -104,7 +104,7 @@ def test_zipfft_backend_falls_back_when_library_absent():
     with pytest.warns(FFTPaddingWarning):
         plan = config.make_plan((4000, 4000), TEMPLATE_SHAPE, "zipfft")
     assert plan.padded_shape == (4096, 4096)
-    assert plan.effective_backend == "batched"
+    assert plan.effective_backend == "streamed"
 
 
 def test_yaml_round_trip(tmp_path):
@@ -113,3 +113,64 @@ def test_yaml_round_trip(tmp_path):
     path = tmp_path / "padding.yaml"
     config.to_yaml(path)
     assert FastFFTPaddingConfig.from_yaml(path) == config
+
+
+# --- the zipFFT backend must be validated on *every* path ---------------------------
+
+
+def _skip_if_zipfft_installed():
+    from leopard_em.utils.zipfft_support import ZIPFFT_AVAILABLE
+
+    if ZIPFFT_AVAILABLE:
+        pytest.skip("zipfft is installed; the no-compiled-config path is not reachable")
+
+
+def test_zipfft_downgrades_when_padding_is_disabled():
+    """'enabled: false' must not smuggle an uncompiled shape into the zipFFT kernel."""
+    _skip_if_zipfft_installed()
+
+    config = FastFFTPaddingConfig(enabled=False)
+    with pytest.warns(FFTPaddingWarning):
+        plan = config.make_plan((4000, 4000), TEMPLATE_SHAPE, "zipfft")
+
+    # The shape the user asked for is honored; only the backend is downgraded.
+    assert plan.padded_shape == (4000, 4000)
+    assert plan.is_padded is False
+    assert plan.effective_backend == "streamed"
+
+
+def test_zipfft_downgrades_on_explicit_target_shape():
+    """An explicit 'target_shape' is the path the old fallback warning pointed at."""
+    _skip_if_zipfft_installed()
+
+    config = FastFFTPaddingConfig(target_shape=[4096, 4096])
+    with pytest.warns(FFTPaddingWarning):
+        plan = config.make_plan((4000, 4000), TEMPLATE_SHAPE, "zipfft")
+
+    assert plan.padded_shape == (4096, 4096)
+    assert plan.effective_backend == "streamed"
+
+
+def test_non_zipfft_backends_are_never_downgraded():
+    config = FastFFTPaddingConfig()
+    for backend in ("streamed", "batched"):
+        plan = config.make_plan((4000, 4000), TEMPLATE_SHAPE, backend)
+        assert plan.effective_backend == backend
+
+
+def test_target_shape_allows_odd_first_dimension():
+    """Only the last (RFFT) axis must be even.
+
+    The first axis is stored in full, so odd sizes are legitimate -- some compiled
+    zipFFT kernels use them (e.g. 5**5 = 3125).
+    """
+    config = FastFFTPaddingConfig(target_shape=[3125, 4096])
+    plan = config.make_plan((3000, 4000), TEMPLATE_SHAPE, "batched")
+    assert plan.padded_shape == (3125, 4096)
+
+
+def test_target_shape_rejects_odd_last_dimension():
+    """The RFFT axis must be even for 'W = 2 * (w_rfft - 1)' to round-trip."""
+    config = FastFFTPaddingConfig(target_shape=[4096, 4097])
+    with pytest.raises(ValueError, match="even on the last dimension"):
+        config.make_plan((4000, 4000), TEMPLATE_SHAPE, "batched")

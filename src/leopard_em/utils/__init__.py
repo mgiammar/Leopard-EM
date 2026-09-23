@@ -15,8 +15,6 @@ from .fft_padding import (
     DEFAULT_FFT_FACTORS,
     FFTPaddingPlan,
     FFTPaddingWarning,
-    crop_bottom_right,
-    filter_correlation_table,
     next_even_fft_shape,
     next_even_fft_size,
     pad_image_gaussian,
@@ -28,7 +26,6 @@ from .search_utils import (
     get_cs_range,
     get_search_tensors,
 )
-from .zipfft_support import ZIPFFT_AVAILABLE, snap_image_shape_to_zipfft, zipfft
 
 __all__ = [
     # Cross correlation
@@ -47,8 +44,6 @@ __all__ = [
     "DEFAULT_FFT_FACTORS",
     "FFTPaddingPlan",
     "FFTPaddingWarning",
-    "crop_bottom_right",
-    "filter_correlation_table",
     "next_even_fft_shape",
     "next_even_fft_size",
     "pad_image_gaussian",
@@ -60,8 +55,4 @@ __all__ = [
     "cs_to_pixel_size",
     "get_cs_range",
     "get_search_tensors",
-    # zipFFT library support
-    "ZIPFFT_AVAILABLE",
-    "snap_image_shape_to_zipfft",
-    "zipfft",
 ]

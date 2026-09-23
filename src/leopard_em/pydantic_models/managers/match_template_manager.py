@@ -31,7 +31,7 @@ from leopard_em.pydantic_models.results import (
 from leopard_em.pydantic_models.results.correlation_table import CorrelationTable
 from leopard_em.utils.ctf_utils import calculate_ctf_filter_stack
 from leopard_em.utils.data_io import load_mrc_image, load_mrc_volume
-from leopard_em.utils.fft_padding import FFTPaddingPlan, filter_correlation_table
+from leopard_em.utils.fft_padding import FFTPaddingPlan
 from leopard_em.utils.fourier_slice import volume_to_rfft_fourier_slice
 from leopard_em.utils.image_processing import (
     get_image_normalization_factor,
@@ -118,18 +118,6 @@ class MatchTemplateManager(BaseModel2DTM):
     # to tell the backend which valid region to accumulate, and to verify the shapes
     # it returns. Reset on every call so it can never go stale.
     _fft_padding_plan: FFTPaddingPlan | None = PrivateAttr(default=None)
-
-    # Keys of the backend result dict holding per-pixel statistics maps.
-    _RESULT_MAP_KEYS: ClassVar[tuple[str, ...]] = (
-        "mip",
-        "scaled_mip",
-        "best_phi",
-        "best_theta",
-        "best_psi",
-        "best_defocus",
-        "correlation_mean",
-        "correlation_variance",
-    )
 
     ###########################
     ### Pydantic Validators ###
@@ -223,6 +211,9 @@ class MatchTemplateManager(BaseModel2DTM):
                 extracted_box_shape=padding_plan.original_shape,
             )
 
+        # NOTE: For "fast padding to FFT shapes", image is pre-processed with filters
+        #       before padding. Whitening and normalization though are still applied
+        #       after padding, so that the padded search reproduces the unpadded one.
         bp_config = self.preprocessing_filters.bandpass_filter
         bandpass_original = bp_config.calculate_bandpass_filter(
             image_dft_original.shape
@@ -487,37 +478,6 @@ class MatchTemplateManager(BaseModel2DTM):
             return None
         return plan.unpadded_valid_shape
 
-    def _unpad_backend_results(self, results: dict[str, Any]) -> dict[str, Any]:
-        """Crop padded result maps and drop correlation hits in the padded region.
-
-        Parameters
-        ----------
-        results : dict[str, Any]
-            Result dictionary returned by the backend.
-
-        Returns
-        -------
-        dict[str, Any]
-            Results cropped to the unpadded valid region.
-        """
-        plan = self._fft_padding_plan
-        if plan is None or not plan.is_padded:
-            return results
-
-        expected_shape = plan.unpadded_valid_shape
-        if tuple(results["mip"].shape) == expected_shape:
-            return results
-
-        # NOTE: correlation-table rows filtered before the statistics maps cropped
-        results = dict(results)
-        results["correlation_table"] = filter_correlation_table(
-            results["correlation_table"], expected_shape
-        )
-        for key in self._RESULT_MAP_KEYS:
-            results[key] = plan.unpad(results[key])
-
-        return results
-
     def _populate_match_template_result(
         self,
         results: dict[str, Any],
@@ -526,7 +486,15 @@ class MatchTemplateManager(BaseModel2DTM):
         do_result_export: bool = True,
     ) -> None:
         """Helper function to populate the MatchTemplateResult object post-core call."""
-        results = self._unpad_backend_results(results)
+        plan = self._fft_padding_plan
+        if plan is not None and plan.is_padded:
+            expected_shape = plan.unpadded_valid_shape
+            if tuple(results["mip"].shape) != expected_shape:
+                raise RuntimeError(
+                    f"Backend returned statistics maps of shape "
+                    f"{tuple(results['mip'].shape)}, expected {expected_shape} from "
+                    f"the FFT padding plan."
+                )
 
         # Place results into the `MatchTemplateResult` object
         self.match_template_result.mip = results["mip"]
