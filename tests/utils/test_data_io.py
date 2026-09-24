@@ -12,6 +12,7 @@ import torch
 
 from leopard_em.pydantic_models.formats import HDF5_TENSORS_GROUP
 from leopard_em.utils.data_io import (
+    atomic_write_path,
     load_mrc_image,
     load_mrc_volume,
     load_result_map_image,
@@ -135,3 +136,72 @@ def test_load_mrc_volume():
     # Ensure the method raises a ValueError if the MRC file is not three-dimensional
     with pytest.raises(ValueError, match="MRC file is not three-dimensional"):
         load_mrc_volume(EXAMPLE_IMAGE_PATH)
+
+
+def _write_tensors_file(path, datasets):
+    with h5py.File(path, "w") as f:
+        grp = f.create_group(HDF5_TENSORS_GROUP)
+        for name, data in datasets.items():
+            grp.create_dataset(name, data=data)
+
+
+@pytest.mark.parametrize("file_name", ["result.hdf", "result.he5", "result"])
+def test_load_result_map_image_detects_hdf5_by_content(tmp_path, file_name):
+    """HDF5 files are detected by signature, not by file extension."""
+    data = np.arange(20, dtype=np.float32).reshape(4, 5)
+    path = tmp_path / file_name
+    _write_tensors_file(path, {"mip": data})
+
+    result = load_result_map_image(path, dataset_name="mip")
+    np.testing.assert_array_equal(result.numpy(), data)
+
+
+def test_load_result_map_image_hdf5_squeezes_singleton_dims(tmp_path):
+    """A (1, H, W) dataset is returned as (H, W), matching the MRC behavior."""
+    data = np.ones((1, 4, 5), dtype=np.float64)
+    path = tmp_path / "result.h5"
+    _write_tensors_file(path, {"mip": data})
+
+    result = load_result_map_image(path, dataset_name="mip")
+    assert result.shape == (4, 5)
+    assert result.dtype == torch.float32
+
+    _write_tensors_file(path, {"mip": np.ones((2, 4, 5), dtype=np.float32)})
+    with pytest.raises(ValueError, match="not two-dimensional"):
+        load_result_map_image(path, dataset_name="mip")
+
+
+def test_load_result_map_image_missing_dataset_names_available(tmp_path):
+    """A missing dataset raises a ValueError naming the file and available datasets."""
+    path = tmp_path / "result.h5"
+    _write_tensors_file(path, {"mip": np.ones((4, 5), dtype=np.float32)})
+
+    with pytest.raises(ValueError, match=r"correlation_variance.*\['mip'\]"):
+        load_result_map_image(path, dataset_name="correlation_variance")
+
+
+def test_load_result_map_image_missing_file(tmp_path):
+    """A missing file raises FileNotFoundError, not an MRC parsing error."""
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        load_result_map_image(tmp_path / "missing.h5", dataset_name="mip")
+
+
+def test_atomic_write_path_replaces_and_cleans_up(tmp_path):
+    """Successful writes replace the target; failed writes leave it untouched."""
+    target = tmp_path / "nested" / "out.txt"
+
+    with atomic_write_path(target) as tmp:
+        tmp.write_text("first")
+    assert target.read_text() == "first"
+    os.chmod(target, 0o640)
+
+    with atomic_write_path(target) as tmp:
+        tmp.write_text("second")
+    assert target.read_text() == "second"
+    assert (target.stat().st_mode & 0o777) == 0o640  # existing mode is preserved
+
+    with pytest.raises(RuntimeError), atomic_write_path(target) as tmp:
+        tmp.write_text("partial")
+        raise RuntimeError("simulated failure mid-write")
+    assert target.read_text() == "second"
+    assert sorted(p.name for p in target.parent.iterdir()) == ["out.txt"]
