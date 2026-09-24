@@ -32,6 +32,9 @@ from leopard_em.pydantic_models.formats import (
     REFINED_DF_COLUMN_ORDER,
     result_column_order,
 )
+from leopard_em.pydantic_models.results.match_template_result import (
+    check_file_path_and_permissions,
+)
 from leopard_em.utils.backend_setup import setup_particle_backend_kwargs
 from leopard_em.utils.data_io import (
     load_mrc_volume,
@@ -293,6 +296,8 @@ class RefineTemplateManager(BaseModel2DTM):
         """
         if allow_file_overwrite is not None:
             _warn_allow_file_overwrite_deprecated()
+        # Fail before the run if the output directory is not writable
+        check_file_path_and_permissions(output_dataframe_path, allow_overwrite=True)
 
         backend_kwargs = self.make_backend_core_function_kwargs()
 
@@ -350,6 +355,8 @@ class RefineTemplateManager(BaseModel2DTM):
         """
         if allow_file_overwrite is not None:
             _warn_allow_file_overwrite_deprecated()
+        # Fail before the run if the output directory is not writable
+        check_file_path_and_permissions(output_dataframe_path, allow_overwrite=True)
 
         backend_kwargs = self.make_differentiable_backend_kwargs(
             image_stack=image_stack,

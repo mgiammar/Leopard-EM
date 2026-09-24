@@ -32,6 +32,9 @@ from leopard_em.pydantic_models.formats import (
     CONSTRAINED_DF_COLUMN_ORDER,
     result_column_order,
 )
+from leopard_em.pydantic_models.results.match_template_result import (
+    check_file_path_and_permissions,
+)
 from leopard_em.utils.backend_setup import (
     _setup_correlation_stacks_from_micrographs,
     astigmatism_angle_tensor,
@@ -283,6 +286,13 @@ class ConstrainedSearchManager(BaseModel2DTM):
         """
         if allow_file_overwrite is not None:
             _warn_allow_file_overwrite_deprecated()
+        output_base, _ = os.path.splitext(output_dataframe_path)
+        for path in (
+            output_dataframe_path,
+            f"{output_base}_parameters.csv",
+            f"{output_base}_above_threshold.csv",
+        ):
+            check_file_path_and_permissions(path, allow_overwrite=True)
 
         backend_kwargs = self.make_backend_core_function_kwargs()
 
